@@ -1,0 +1,61 @@
+{
+  "_說明": "機台清單、資料來源與聯絡窗口。history/log 路徑相對於此資料夾。",
+  "sources": [
+    {
+      "profile": "discovery8",
+      "history": "d8_history.csv",
+      "log": "d8_maintenance_log.csv"
+    },
+    {
+      "profile": "fusion22",
+      "history": "f22_history.csv",
+      "log": "f22_maintenance_log.csv"
+    }
+  ],
+  "machines": [
+    {
+      "id": "DIS8-1",
+      "name": "Discovery 8 #1",
+      "model": "Orbotech Discovery 8",
+      "profile": "discovery8"
+    },
+    {
+      "id": "DIS8-2",
+      "name": "Discovery 8 #2",
+      "model": "Orbotech Discovery 8",
+      "profile": "discovery8"
+    },
+    {
+      "id": "DIS8-3",
+      "name": "Discovery 8 #3",
+      "model": "Orbotech Discovery 8",
+      "profile": "discovery8"
+    },
+    {
+      "id": "FUS22-1",
+      "name": "Fusion 22 #1",
+      "model": "KLA Fusion 22",
+      "profile": "fusion22"
+    },
+    {
+      "id": "FUS22-2",
+      "name": "Fusion 22 #2",
+      "model": "KLA Fusion 22",
+      "profile": "fusion22"
+    }
+  ],
+  "contacts": [
+    {
+      "name": "設備課值班工程師",
+      "phone": "分機 ____",
+      "note": "(請填入)"
+    },
+    {
+      "name": "KLA / Orbotech 原廠服務",
+      "phone": "____",
+      "note": "提供機台序號與錯誤畫面"
+    }
+  ],
+  "spares": "spares.csv",
+  "refresh_seconds": 60
+}

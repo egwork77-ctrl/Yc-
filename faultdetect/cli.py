@@ -33,6 +33,13 @@ def print_report(report):
 PM_ICON = {"overdue": "⛔ 逾期", "alarm": "🔴 緊急", "warn": "🟡 近期", "info": "🔵 規劃", "ok": "🟢 正常"}
 
 
+PART_ICON = {"order_now": "🛒 立即備料", "order_soon": "📋 準備備料", "stocked": "📦 有庫存", "ok": "🟢 正常"}
+
+
+def _order(d):
+    return "—" if d is None else ("已過(立即下單)" if d <= 0 else f"{d:g} 天內")
+
+
 def _days(d):
     return "—" if d is None else ("現在" if d <= 0 else f"{d:g} 天")
 
@@ -48,6 +55,13 @@ def print_predict(report):
             trend = f"{p['slope_per_day']:+g}/天" if p["r2"] >= 0.5 else "穩定"
             print(f"    {p['name']:<14} 現值 {p['current']:<8.4g} 趨勢 {trend:<12} 健康 {p['health']:>3}"
                   f"  預計超標 {_days(eta)}")
+        if m.get("parts"):
+            print("  零件健康度:")
+            for p in m["parts"]:
+                if p["due_days"] is None:
+                    continue
+                print(f"    {PART_ICON[p['status']]} {p['name']:<16} 健康 {p['health']:>3}  預計 {_days(p['due_days'])} 需更換"
+                      f"  交期 {p['lead_days']} 天  庫存 {p['stock']}  最晚下單 {'不需(有庫存)' if p['status'] == 'stocked' else _order(p['order_by_days'])}")
         if m["tasks"]:
             print("  保養待辦:")
             for t in m["tasks"]:
@@ -79,6 +93,7 @@ def main(argv=None):
     pr.add_argument("csv", help="含 timestamp 的歷史感測資料")
     pr.add_argument("--log", help="保養紀錄 CSV (date, machine_id, item)")
     pr.add_argument("--profile", choices=detector.PROFILES, default="discovery8")
+    pr.add_argument("--spares", help="備品庫存 CSV (machine_id, part_id, part_no, stock, lead_days)")
     pr.add_argument("--config")
     pr.add_argument("--json", action="store_true")
 
@@ -89,9 +104,10 @@ def main(argv=None):
     y = sub.add_parser("symptoms", help="列出可用症狀代碼")
     y.add_argument("--profile", choices=detector.PROFILES, default="generic")
 
-    s = sub.add_parser("serve", help="啟動網頁介面")
+    s = sub.add_parser("serve", help="啟動現場排除介面(--host 0.0.0.0 讓 iPad 連線)")
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8000)
+    s.add_argument("--data", default="samples", help="資料目錄(含 machines.json)")
 
     g = sub.add_parser("sample", help="產生範例資料")
     g.add_argument("out")
@@ -110,7 +126,7 @@ def main(argv=None):
 
     if args.cmd == "predict":
         from . import predict
-        report = predict.run(args.csv, args.profile, args.log, args.config)
+        report = predict.run(args.csv, args.profile, args.log, args.config, args.spares)
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2))
         else:
@@ -133,7 +149,7 @@ def main(argv=None):
 
     if args.cmd == "serve":
         from .web import serve
-        serve(args.host, args.port)
+        serve(args.host, args.port, args.data)
         return 0
 
     if args.cmd == "sample":

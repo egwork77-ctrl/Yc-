@@ -136,5 +136,58 @@
     "wide": "線粗",
     "spacing": "間距不足",
     "registration": "對位失敗"
-  }
+  },
+  "parts_safety_days": 3,
+  "parts": [
+    {
+      "id": "lamp",
+      "name": "照明燈管",
+      "sensors": [
+        "lamp_intensity"
+      ],
+      "life_item": "照明燈管更換",
+      "lead_days": 14
+    },
+    {
+      "id": "optics",
+      "name": "掃描鏡頭 / 保護玻璃",
+      "sensors": [
+        "focus_score"
+      ],
+      "lead_days": 30
+    },
+    {
+      "id": "vacuum_pump",
+      "name": "真空幫浦 / 真空管路",
+      "sensors": [
+        "vacuum_kpa"
+      ],
+      "life_item": "真空幫浦保養",
+      "lead_days": 21
+    },
+    {
+      "id": "xy_stage",
+      "name": "XY 平台導軌 / 滾珠螺桿",
+      "sensors": [
+        "stage_error_um"
+      ],
+      "lead_days": 45
+    },
+    {
+      "id": "air_filter",
+      "name": "空壓過濾器濾芯 / 調壓閥",
+      "sensors": [
+        "air_pressure"
+      ],
+      "lead_days": 7
+    },
+    {
+      "id": "cooling_fan",
+      "name": "散熱風扇 / 濾網",
+      "sensors": [
+        "temperature"
+      ],
+      "lead_days": 7
+    }
+  ]
 }

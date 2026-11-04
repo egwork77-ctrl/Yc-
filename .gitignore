@@ -1,2 +1,3 @@
 __pycache__/
 *.pyc
+samples/repair_log.csv

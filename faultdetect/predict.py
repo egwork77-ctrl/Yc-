@@ -129,6 +129,7 @@ def schedule(mid, counters, now, cfg, log):
         if "every_days" in m:
             due = (last[0] + timedelta(days=m["every_days"]) - now).total_seconds() / 86400
             entry["note"] = f"每 {m['every_days']} 天"
+            entry["remaining_pct"] = max(0.0, min(100.0, due / m["every_days"] * 100))
         else:
             unit = "every_hours" if "every_hours" in m else "every_boards"
             col = m["counter"]
@@ -144,11 +145,60 @@ def schedule(mid, counters, now, cfg, log):
             due = remaining / rate
             label = "小時" if unit == "every_hours" else "片"
             entry["note"] = f"每 {m[unit]:,} {label},剩 {max(remaining, 0):,.0f} {label}"
+            entry["remaining_pct"] = max(0.0, min(100.0, remaining / m[unit] * 100))
+            entry["usage"] = True
         entry["due_days"] = round(due, 1)
         entry["level"] = ("overdue" if due <= 0 else "alarm" if due <= pc["urgent_days"]
                           else "warn" if due <= pc["soon_days"] else "ok")
         out.append(entry)
     return out
+
+
+def parts_health(mid, preds, sched, cfg, spares):
+    """零件健康度 = min(相關感測健康度, 壽命剩餘%);預計失效日 - 交期 - 安全天數 = 最晚下單日。"""
+    by_sensor = {p["sensor"]: p for p in preds}
+    by_item = {s["item"]: s for s in sched}
+    safety = cfg.get("parts_safety_days", 3)
+    out = []
+    for part in cfg.get("parts", []):
+        ps = [by_sensor[x] for x in part.get("sensors", []) if x in by_sensor]
+        life = by_item.get(part.get("life_item"))
+        if not ps and not life:
+            continue
+        healths = [p["health"] for p in ps]
+        dues = [p["due_days"] for p in ps if p.get("due_days") is not None]
+        reasons = [f"{p['name']} 預計 {p['due_days']:g} 天後超標" for p in ps if p.get("due_days") is not None]
+        if life and life.get("usage") and life.get("due_days") is not None:
+            healths.append(round(life["remaining_pct"]))
+            dues.append(life["due_days"])
+            reasons.append(f"壽命:{life['note']}")
+        sp = spares.get((mid, part["id"])) or spares.get(("*", part["id"])) or {}
+        lead = int(float(sp.get("lead_days") or part.get("lead_days", 14)))
+        stock = int(float(sp.get("stock") or 0))
+        due = min(dues) if dues else None
+        order_by = None if due is None else round(due - lead - safety, 1)
+        if due is None:
+            status = "ok"
+        elif stock > 0:
+            status = "stocked"
+        elif order_by <= 0:
+            status = "order_now"
+        elif order_by <= 14:
+            status = "order_soon"
+        else:
+            status = "ok"
+        out.append({"part_id": part["id"], "name": part["name"], "health": min(healths) if healths else 100,
+                    "due_days": due, "lead_days": lead, "order_by_days": order_by, "stock": stock,
+                    "part_no": sp.get("part_no", ""), "status": status, "reasons": reasons})
+    return sorted(out, key=lambda x: (x["due_days"] is None, x["due_days"] or 0, x["health"]))
+
+
+def load_spares(source):
+    """備品 CSV:machine_id(* 代表全部), part_id, part_no, stock, lead_days"""
+    if source is None:
+        return {}
+    return {((r.get("machine_id") or "*").strip(), (r.get("part_id") or "").strip()): r
+            for r in detector.read_rows(source)}
 
 
 def load_log(source):
@@ -166,11 +216,12 @@ def load_log(source):
     return log
 
 
-def run(source, profile="aoi", log_source=None, config_path=None):
+def run(source, profile="aoi", log_source=None, config_path=None, spares_source=None):
     cfg = detector.load_config(config_path, profile)
     from .diagnosis import load_kb
     kb = load_kb(profile=profile)
     log = load_log(log_source)
+    spares = load_spares(spares_source)
 
     by_machine = defaultdict(lambda: defaultdict(list))
     for r in detector.read_rows(source):
@@ -202,5 +253,6 @@ def run(source, profile="aoi", log_source=None, config_path=None):
         level = min((t["level"] for t in tasks), key=LEVEL_ORDER.get, default="ok")
         report.append({"machine_id": mid, "as_of": now.isoformat(timespec="minutes"),
                        "health": health, "level": level,
+                       "parts": parts_health(mid, preds, sched, cfg, spares),
                        "predictions": preds, "schedule": sched, "tasks": tasks})
     return sorted(report, key=lambda m: (m["health"], m["machine_id"]))

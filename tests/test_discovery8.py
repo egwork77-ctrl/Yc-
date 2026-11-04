@@ -32,3 +32,21 @@ class Discovery8Test(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PartsTest(unittest.TestCase):
+    def test_parts_and_spares(self):
+        import io
+        with tempfile.TemporaryDirectory() as d:
+            h, l = Path(d) / "h.csv", Path(d) / "l.csv"
+            write_d8_history(h)
+            write_d8_log(l)
+            spares = io.StringIO("machine_id,part_id,part_no,stock,lead_days\n*,lamp,P-1,0,14\nDIS8-1,vacuum_pump,P-2,1,21\n")
+            r = {m["machine_id"]: m for m in predict.run(h, "discovery8", l, spares_source=spares)}
+        parts = {p["part_id"]: p for p in r["DIS8-2"]["parts"]}
+        lamp = parts["lamp"]
+        self.assertEqual(lamp["status"], "order_now")          # 6 天內壞、交期 14 天、無庫存
+        self.assertEqual(lamp["part_no"], "P-1")
+        vac = {p["part_id"]: p for p in r["DIS8-1"]["parts"]}["vacuum_pump"]
+        self.assertEqual(vac["status"], "stocked")
+        self.assertLess(vac["due_days"], 7)
