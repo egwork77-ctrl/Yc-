@@ -1,4 +1,25 @@
-# 機台故障偵測與排除系統
+# AOI 機台預知保養與故障排除系統
+
+**在故障發生前就預警。** 從機台感測資料的長期趨勢，預測幾天後會超標，
+再搭配定期保養週期（天數、運轉時數、過板數），列出保養待辦和處理步驟。
+
+## 預知保養（主要功能）
+
+```bash
+python -m faultdetect sample samples/aoi_history.csv --type aoi-history
+python -m faultdetect sample samples/maintenance_log.csv --type maintenance-log
+python -m faultdetect predict samples/aoi_history.csv --log samples/maintenance_log.csv
+```
+
+- **趨勢預測**：用最近 14 天的資料做線性回歸，算出距離警告／警報門檻還有幾天（R² 太低時判定為穩定，不做預測）
+- **健康度 0–100**：從基準值到警報值，還剩多少空間
+- **定期保養**：依天數、`run_hours`、`board_count` 計算下次到期日（耗用速度由歷史資料推算）
+- **分級**：⛔ 逾期 / 🔴 緊急（≤3 天）/ 🟡 近期（≤14 天）/ 🔵 規劃
+- 有警報或逾期時，回傳碼為 2，可以接排程每天自動執行
+
+歷史資料 CSV：`timestamp, machine_id, light_intensity, focus_score, fiducial_score, temperature, conveyor_speed, cycle_time, run_hours, board_count`
+保養紀錄 CSV：`date, machine_id, item[, run_hours, board_count]`（item 名稱需和 config 的 `maintenance` 項目一致）
+保養週期在 `faultdetect/profiles/aoi/config.json` 的 `maintenance` 修改。
 
 讀取機台感測資料 → 偵測異常 → 比對知識庫推論故障原因 → 提供排除步驟。
 純 Python 標準函式庫(3.10+),免安裝套件。

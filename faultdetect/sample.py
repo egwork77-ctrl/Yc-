@@ -87,4 +87,45 @@ def write_aoi_results(path, boards=200, seed=7):
                                 "defect_type": dtype, "component": comp, "verdict": verdict})
 
 
-SAMPLES = {"generic": write_sample, "aoi": write_aoi_sensors, "aoi-results": write_aoi_results}
+PM_FIELDS = AOI_SENSOR_FIELDS + ["run_hours", "board_count"]
+
+
+def write_aoi_history(path, days=30, seed=3):
+    """30 天、每 6 小時一筆。AOI1 穩定、AOI2 光源緩慢衰減、AOI3 對焦緩慢下降。"""
+    rnd = random.Random(seed)
+    start = datetime(2026, 1, 1, 0, 0)
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=PM_FIELDS)
+        w.writeheader()
+        for mid, hours0, boards0 in (("AOI1", 5000, 900000), ("AOI2", 18500, 3200000), ("AOI3", 9000, 1500000)):
+            for i in range(days * 4):
+                d = i / 4
+                v = dict(light_intensity=97 + rnd.gauss(0, 0.4), focus_score=92 + rnd.gauss(0, 0.5),
+                         fiducial_score=0.95 + rnd.gauss(0, 0.004), temperature=28 + rnd.gauss(0, 0.3),
+                         conveyor_speed=200 + rnd.gauss(0, 2), cycle_time=18 + rnd.gauss(0, 0.4))
+                if mid == "AOI2":
+                    v["light_intensity"] -= d * 0.35
+                elif mid == "AOI3":
+                    v["focus_score"] -= d * 0.25
+                v["run_hours"] = hours0 + d * 20
+                v["board_count"] = boards0 + int(d * 3000)
+                w.writerow({"timestamp": (start + timedelta(hours=6 * i)).isoformat(timespec="minutes"),
+                            "machine_id": mid, **{k: round(x, 3) for k, x in v.items()}})
+
+
+def write_maintenance_log(path):
+    rows = []
+    for mid in ("AOI1", "AOI2", "AOI3"):
+        rows += [("2026-01-28", mid, "鏡頭與保護玻璃清潔"), ("2026-01-20", mid, "光源 / 相機校正(標準板驗證)"),
+                 ("2025-12-15", mid, "散熱風扇與濾網清潔"), ("2025-12-20", mid, "XY 軸線軌 / 導螺桿潤滑"),
+                 ("2025-11-01", mid, "輸送皮帶檢查 / 更換")]
+    rows.append(("2024-01-10", "AOI1", "光源模組更換"))
+    rows.append(("2023-05-15", "AOI2", "光源模組更換"))
+    rows.append(("2024-08-15", "AOI3", "光源模組更換"))
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["date", "machine_id", "item"])
+        w.writerows(rows)
+
+
+SAMPLES = {"aoi-history": write_aoi_history, "maintenance-log": write_maintenance_log, "generic": write_sample, "aoi": write_aoi_sensors, "aoi-results": write_aoi_results}

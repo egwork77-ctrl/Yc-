@@ -1,5 +1,6 @@
 """命令列介面。
 
+  python -m faultdetect predict samples/aoi_history.csv --log samples/maintenance_log.csv
   python -m faultdetect analyze samples/sensors.csv [--profile aoi] [--json]
   python -m faultdetect diagnose temperature_high vibration_high [--profile aoi]
   python -m faultdetect symptoms [--profile aoi]
@@ -29,6 +30,37 @@ def print_report(report):
                 print(f"     {n}. {step}")
 
 
+PM_ICON = {"overdue": "⛔ 逾期", "alarm": "🔴 緊急", "warn": "🟡 近期", "info": "🔵 規劃", "ok": "🟢 正常"}
+
+
+def _days(d):
+    return "—" if d is None else ("現在" if d <= 0 else f"{d:g} 天")
+
+
+def print_predict(report):
+    for m in report:
+        bar = "█" * (m["health"] // 10) + "░" * (10 - m["health"] // 10)
+        print(f"\n=== 機台 {m['machine_id']}  健康度 {bar} {m['health']}  {PM_ICON[m['level']]}"
+              f"  (資料至 {m['as_of']}) ===")
+        print("  感測趨勢:")
+        for p in m["predictions"]:
+            eta = p["eta"].get("warn", p["eta"].get("alarm"))
+            trend = f"{p['slope_per_day']:+g}/天" if p["r2"] >= 0.5 else "穩定"
+            print(f"    {p['name']:<14} 現值 {p['current']:<8.4g} 趨勢 {trend:<12} 健康 {p['health']:>3}"
+                  f"  預計超標 {_days(eta)}")
+        if m["tasks"]:
+            print("  保養待辦:")
+            for t in m["tasks"]:
+                print(f"    {PM_ICON[t['level']]} [{t['type']}] {t['item']}  →  {t['action']}"
+                      f"  (期限 {_days(t['due_days'])})")
+        for p in m["predictions"]:
+            if p["faults"]:
+                f = p["faults"][0]
+                print(f"\n  ▶ {p['name']} 建議保養:{f['name']}")
+                for n, step in enumerate(f["steps"], 1):
+                    print(f"     {n}. {step}")
+
+
 def all_symptoms(profile="generic"):
     return sorted({s for f in diagnosis.load_kb(profile=profile) for s in f["symptoms"]})
 
@@ -43,6 +75,13 @@ def main(argv=None):
     a.add_argument("--config", help="自訂門檻設定檔")
     a.add_argument("--json", action="store_true", help="輸出 JSON")
 
+    pr = sub.add_parser("predict", help="預知保養:預測何時超標 + 定期保養到期")
+    pr.add_argument("csv", help="含 timestamp 的歷史感測資料")
+    pr.add_argument("--log", help="保養紀錄 CSV (date, machine_id, item)")
+    pr.add_argument("--profile", choices=detector.PROFILES, default="aoi")
+    pr.add_argument("--config")
+    pr.add_argument("--json", action="store_true")
+
     d = sub.add_parser("diagnose", help="直接輸入症狀診斷")
     d.add_argument("symptoms", nargs="+")
     d.add_argument("--profile", choices=detector.PROFILES, default="generic")
@@ -56,7 +95,7 @@ def main(argv=None):
 
     g = sub.add_parser("sample", help="產生範例資料")
     g.add_argument("out")
-    g.add_argument("--type", choices=["generic", "aoi", "aoi-results"], default="generic")
+    g.add_argument("--type", choices=["generic", "aoi", "aoi-results", "aoi-history", "maintenance-log"], default="generic")
 
     args = p.parse_args(argv)
 
@@ -67,6 +106,15 @@ def main(argv=None):
         else:
             print_report(report)
         return 2 if any(m["status"] == "alarm" for m in report) else 0
+
+    if args.cmd == "predict":
+        from . import predict
+        report = predict.run(args.csv, args.profile, args.log, args.config)
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+        else:
+            print_predict(report)
+        return 2 if any(m["level"] in ("overdue", "alarm") for m in report) else 0
 
     if args.cmd == "diagnose":
         unknown = set(args.symptoms) - set(all_symptoms(args.profile))
