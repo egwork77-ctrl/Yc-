@@ -3,7 +3,9 @@ import io
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import detector, diagnosis
+from urllib.parse import parse_qs, urlparse
+
+from . import detector, engine
 
 PAGE = """<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -15,7 +17,9 @@ textarea{width:100%;height:160px;font-family:monospace}
 button{padding:8px 16px;font-size:15px}small{color:#666}
 </style></head><body>
 <h1>機台故障偵測與排除</h1>
-<div class="card"><p>上傳 CSV(欄位:timestamp, machine_id, temperature, vibration, current, pressure, rpm)或直接貼上內容:</p>
+<div class="card"><p>機台類型:<select id="profile"><option value="aoi">AOI 電路板檢測</option><option value="generic">一般機台</option></select>
+<small>(AOI 檢測結果 CSV 會自動辨識)</small></p>
+<p>上傳 CSV 或直接貼上內容:</p>
 <input type="file" id="file" accept=".csv"><br><br>
 <textarea id="csv" placeholder="timestamp,machine_id,temperature,..."></textarea><br>
 <button onclick="run()">分析</button></div>
@@ -26,12 +30,12 @@ document.getElementById('file').onchange=e=>{const r=new FileReader();
  r.onload=()=>document.getElementById('csv').value=r.result;r.readAsText(e.target.files[0]);};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function run(){
- const res=await fetch('/api/analyze',{method:'POST',body:document.getElementById('csv').value});
+ const res=await fetch('/api/analyze?profile='+document.getElementById('profile').value,{method:'POST',body:document.getElementById('csv').value});
  const data=await res.json(); const out=document.getElementById('out');
  if(data.error){out.innerHTML='<div class="card alarm">'+esc(data.error)+'</div>';return;}
  out.innerHTML=data.map(m=>`<div class="card ${m.status}"><h2>機台 ${esc(m.machine_id)} — ${L[m.status]}</h2>
  <ul>${m.findings.map(f=>`<li>${L[f.level]} ${esc(f.message)}</li>`).join('')}</ul>
- ${m.diagnosis.slice(0,3).map(d=>`<h3>${esc(d.name)} <small>信心 ${Math.round(d.confidence*100)}%</small></h3>
+ ${m.diagnosis.slice(0,3).map(d=>`<h3>${d.category?'['+esc(d.category)+'] ':''}${esc(d.name)} <small>信心 ${Math.round(d.confidence*100)}%</small></h3>
  <ol>${d.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`).join('')}</div>`).join('');
 }
 </script></body></html>"""
@@ -53,17 +57,18 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, "not found", "text/plain")
 
     def do_POST(self):
-        if self.path != "/api/analyze":
+        url = urlparse(self.path)
+        if url.path != "/api/analyze":
             return self._send(404, "not found", "text/plain")
         length = int(self.headers.get("Content-Length", 0))
         if length > 20_000_000:
             return self._send(413, json.dumps({"error": "檔案過大"}), "application/json")
         text = self.rfile.read(length).decode("utf-8-sig", errors="replace")
         try:
-            data = detector.load_csv(io.StringIO(text))
-            if not data:
-                raise ValueError("沒有資料")
-            report = diagnosis.build_report(detector.analyze(data))
+            profile = parse_qs(url.query).get("profile", ["generic"])[0]
+            if profile not in detector.PROFILES:
+                raise ValueError(f"未知機台類型 {profile}")
+            report = engine.run(io.StringIO(text), profile)
             self._send(200, json.dumps(report, ensure_ascii=False), "application/json")
         except Exception as e:  # noqa: BLE001
             self._send(400, json.dumps({"error": f"解析失敗:{e}"}, ensure_ascii=False), "application/json")

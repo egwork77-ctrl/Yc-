@@ -1,15 +1,13 @@
 """依症狀比對知識庫,推論可能故障並給出排除步驟。"""
 import json
-from pathlib import Path
 
-from .detector import LEVEL_RANK
+from .detector import LEVEL_RANK, PROFILES_DIR
 
-DEFAULT_KB = Path(__file__).with_name("knowledge_base.json")
 LEVEL_WEIGHT = {"info": 0.5, "warn": 1.0, "alarm": 1.5}
 
 
-def load_kb(path=None):
-    with open(path or DEFAULT_KB, encoding="utf-8") as f:
+def load_kb(path=None, profile="generic"):
+    with open(path or PROFILES_DIR / profile / "knowledge_base.json", encoding="utf-8") as f:
         return json.load(f)["faults"]
 
 
@@ -29,6 +27,7 @@ def diagnose(symptoms, kb=None, min_score=0.3):
             results.append({
                 "id": fault["id"],
                 "name": fault["name"],
+                "category": fault.get("category", ""),
                 "confidence": round(score, 2),
                 "matched": [s for s in weights if s in symptoms],
                 "steps": fault["steps"],

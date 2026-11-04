@@ -5,7 +5,8 @@ import statistics
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-DEFAULT_CONFIG = Path(__file__).with_name("config.json")
+PROFILES_DIR = Path(__file__).with_name("profiles")
+PROFILES = ("generic", "aoi")
 LEVEL_RANK = {"info": 0, "warn": 1, "alarm": 2}
 
 
@@ -22,19 +23,21 @@ class Finding:
         return asdict(self)
 
 
-def load_config(path=None):
-    with open(path or DEFAULT_CONFIG, encoding="utf-8") as f:
+def load_config(path=None, profile="generic"):
+    with open(path or PROFILES_DIR / profile / "config.json", encoding="utf-8") as f:
         return json.load(f)
+
+
+def read_rows(path_or_file):
+    if hasattr(path_or_file, "read"):
+        return list(csv.DictReader(path_or_file))
+    with open(path_or_file, encoding="utf-8-sig", newline="") as f:
+        return list(csv.DictReader(f))
 
 
 def load_csv(path_or_file):
     """讀取 CSV,依 machine_id 分組。回傳 {machine_id: {sensor: [值或 None]}}。"""
-    if hasattr(path_or_file, "read"):
-        rows = list(csv.DictReader(path_or_file))
-    else:
-        with open(path_or_file, encoding="utf-8-sig", newline="") as f:
-            rows = list(csv.DictReader(f))
-    return group_rows(rows)
+    return group_rows(read_rows(path_or_file))
 
 
 def group_rows(rows):
@@ -106,6 +109,13 @@ def analyze_sensor(machine_id, sensor, series, cfg):
         if s > slope_limit:
             findings.append(Finding(machine_id, sensor, f"{sensor}_rising", "warn",
                                     f"{name} 持續上升 (每筆 +{s:.2f})", s))
+
+    fall_limit = cfg.get("trend_slope_fall_warn", {}).get(sensor)
+    if fall_limit is not None and len(window) >= 3:
+        s = _slope(window)
+        if s < -fall_limit:
+            findings.append(Finding(machine_id, sensor, f"{sensor}_falling", "warn",
+                                    f"{name} 持續下降 (每筆 {s:.2f})", s))
 
     # 4. 不穩定度(變異係數)
     cv_limit = cfg.get("unstable_cv", {}).get(sensor)

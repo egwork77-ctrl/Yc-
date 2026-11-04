@@ -1,0 +1,29 @@
+{
+  "_說明": "AOI 機台感測門檻與檢測結果統計門檻,請依機型與產品調整。",
+  "sensors": {
+    "light_intensity": {"name": "光源亮度(%基準)", "min_alarm": 75, "min_warn": 85},
+    "focus_score":     {"name": "對焦清晰度",      "min_alarm": 70, "min_warn": 80},
+    "fiducial_score":  {"name": "Mark 點比對分數", "min_alarm": 0.7, "min_warn": 0.85},
+    "temperature":     {"name": "機內溫度(°C)",    "max_warn": 35, "max_alarm": 40},
+    "conveyor_speed":  {"name": "輸送速度(mm/s)",  "min_warn": 100},
+    "cycle_time":      {"name": "單板檢測時間(s)", "max_warn": 30, "max_alarm": 40}
+  },
+  "zscore_limit": 3.0,
+  "trend_window": 10,
+  "trend_slope_fall_warn": {"light_intensity": 0.3, "focus_score": 0.5},
+  "unstable_cv": {"conveyor_speed": 0.08, "cycle_time": 0.2},
+  "results": {
+    "min_calls": 10,
+    "false_call_rate": {"warn": 0.3, "alarm": 0.5},
+    "ng_board_rate":   {"warn": 0.05, "alarm": 0.10},
+    "defect_rate":     {"warn": 0.02, "alarm": 0.05},
+    "fiducial_rate":   {"warn": 0.01, "alarm": 0.03},
+    "concentrated_share": 0.4,
+    "repeat_min_count": 5
+  },
+  "defect_names": {
+    "missing": "缺件", "shift": "偏移", "bridge": "橋接/短路", "insufficient": "少錫/空焊",
+    "excess": "多錫", "tombstone": "立碑", "polarity": "極性反", "wrong": "錯件",
+    "lifted": "翹腳", "fiducial": "Mark 點辨識失敗"
+  }
+}

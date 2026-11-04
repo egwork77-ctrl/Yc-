@@ -1,0 +1,124 @@
+{
+  "faults": [
+    {
+      "id": "light_aging", "category": "AOI 機台",
+      "name": "光源老化 / 亮度衰減",
+      "symptoms": {"light_intensity_low": 3, "light_intensity_falling": 2, "false_call_high": 2},
+      "steps": [
+        "執行光源亮度校正 (Light Calibration),記錄各色光 (RGB/環形) 數值",
+        "與機台出廠基準值比對,衰減 >20% 建議更換光源模組",
+        "檢查光源電源線與控制板接頭",
+        "更換或校正後,以標準板 (Golden Board) 重新驗證"
+      ]
+    },
+    {
+      "id": "lens_dirty", "category": "AOI 機台",
+      "name": "鏡頭髒污 / 失焦",
+      "symptoms": {"focus_score_low": 3, "focus_score_falling": 1, "false_call_high": 2},
+      "steps": [
+        "停機後以無塵布 + 鏡頭清潔液清潔鏡頭與保護玻璃",
+        "執行相機對焦 / Z 軸高度校正",
+        "檢查相機固定座是否鬆動",
+        "以校正片確認像素解析度 (μm/pixel) 正確"
+      ]
+    },
+    {
+      "id": "program_too_strict", "category": "AOI 程式",
+      "name": "檢測程式參數過嚴 (誤判多)",
+      "symptoms": {"false_call_high": 3, "false_call_concentrated": 3},
+      "steps": [
+        "從誤判報表找出誤判最多的元件 / 檢測項目",
+        "確認該元件是否換料 (不同廠牌外觀不同),必要時新增元件庫或替代料",
+        "適度放寬該項目的容許值 (色彩、偏移量、亮度),避免一次放太寬造成漏判",
+        "調整後用已知不良板驗證不會漏判"
+      ]
+    },
+    {
+      "id": "fiducial_issue", "category": "AOI 機台",
+      "name": "板子定位 / Mark 點辨識異常",
+      "symptoms": {"fiducial_score_low": 3, "fiducial_fail_high": 3, "defect_shift_high": 1},
+      "steps": [
+        "檢查 Mark 點是否氧化、沾錫或被遮擋",
+        "重新教導 (Teach) Mark 點影像與搜尋範圍",
+        "確認板子夾持 / 頂針定位正常,板彎是否過大",
+        "確認輸送軌道寬度與板寬相符"
+      ]
+    },
+    {
+      "id": "conveyor_issue", "category": "AOI 機台",
+      "name": "輸送軌道異常 (卡板、速度不穩)",
+      "symptoms": {"conveyor_speed_unstable": 3, "conveyor_speed_low": 2, "cycle_time_high": 2, "cycle_time_unstable": 1},
+      "steps": [
+        "檢查輸送皮帶磨損、張力與清潔度",
+        "檢查進出板感測器 (光電開關) 是否髒污或位移",
+        "確認軌道寬度與平行度",
+        "檢查軌道馬達與上下游 SMEMA 訊號"
+      ]
+    },
+    {
+      "id": "overheating", "category": "AOI 機台",
+      "name": "機台過熱 (散熱不良)",
+      "symptoms": {"temperature_high": 3, "focus_score_low": 1, "light_intensity_low": 1},
+      "steps": [
+        "清潔機台散熱風扇與濾網",
+        "確認車間空調溫度正常",
+        "檢查工控電腦 / 相機 / 光源控制器溫度",
+        "降溫後重新校正光源與對焦"
+      ]
+    },
+    {
+      "id": "stencil_clog", "category": "上游製程-印刷",
+      "name": "鋼板堵孔 / 錫膏量不足",
+      "symptoms": {"defect_insufficient_high": 3, "repeat_location": 1},
+      "steps": [
+        "檢查印刷機鋼板對應開孔是否堵塞,執行擦拭 (濕擦 + 真空擦)",
+        "確認錫膏回溫、攪拌與使用時限",
+        "檢查刮刀壓力、速度與刮刀磨損",
+        "比對 SPI 錫膏量數據確認改善"
+      ]
+    },
+    {
+      "id": "print_offset", "category": "上游製程-印刷",
+      "name": "印刷偏移 / 錫膏過多",
+      "symptoms": {"defect_bridge_high": 3, "defect_excess_high": 2},
+      "steps": [
+        "檢查印刷機鋼板與 PCB 對位 (Mark 點校正)",
+        "檢查鋼板張力與底部是否沾錫,清潔鋼板底面",
+        "確認脫模速度、鋼板與 PCB 間隙",
+        "細間距元件考慮縮孔或改鋼板厚度"
+      ]
+    },
+    {
+      "id": "pnp_nozzle", "category": "上游製程-貼片",
+      "name": "貼片機吸嘴 / 供料器異常",
+      "symptoms": {"defect_missing_high": 3, "defect_shift_high": 2, "repeat_location": 1},
+      "steps": [
+        "依重複不良位置找出對應的貼片頭、吸嘴與 Feeder",
+        "檢查吸嘴是否磨損、堵塞,真空值是否正常",
+        "檢查 Feeder 送料是否卡料、料帶是否正確",
+        "確認貼片座標與元件高度設定"
+      ]
+    },
+    {
+      "id": "reflow_profile", "category": "上游製程-回焊",
+      "name": "回焊爐溫曲線不當",
+      "symptoms": {"defect_tombstone_high": 3, "defect_lifted_high": 2, "defect_insufficient_high": 1},
+      "steps": [
+        "以測溫板重新量測爐溫曲線,比對錫膏規格",
+        "檢查預熱區升溫速率與浸潤時間 (立碑常因兩端受熱不均)",
+        "檢查爐內風扇、加熱器與鏈條速度",
+        "確認元件兩端焊墊設計是否對稱"
+      ]
+    },
+    {
+      "id": "material_error", "category": "上游製程-上料",
+      "name": "上料錯誤 / 元件方向錯",
+      "symptoms": {"defect_wrong_high": 3, "defect_polarity_high": 3},
+      "steps": [
+        "立即核對 Feeder 站位與料號 (上料防錯系統紀錄)",
+        "檢查料盤 / 料管方向與元件庫極性設定",
+        "隔離同批次已生產的板子進行全檢"
+      ]
+    }
+  ]
+}
