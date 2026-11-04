@@ -1,0 +1,16 @@
+{
+  "extends": "discovery8",
+  "remove": ["lamp_aging"],
+  "faults": [
+    {"id": "light_channel", "category": "Fusion 22 機台", "name": "照明光源衰減(多影像其中一組)",
+     "symptoms": {"light_ch1_low": 2, "light_ch1_falling": 2, "light_ch2_low": 2, "light_ch2_falling": 2,
+                  "light_ch3_low": 2, "light_ch3_falling": 2, "false_call_high": 1},
+     "steps": ["執行多光源照明校正,比對各通道與上次校正值", "找出衰減的通道,檢查該組光源模組與驅動板",
+               "檢查導光元件 / 擴散片是否髒污", "更換後重新校正,並以標準板驗證誤判率"]},
+    {"id": "throughput_drop", "category": "Fusion 22 機台", "name": "產能下降",
+     "symptoms": {"sides_per_hour_low": 3, "sides_per_hour_falling": 2, "sides_per_hour_unstable": 1,
+                  "stage_error_um_high": 1, "registration_score_low": 1},
+     "steps": ["比對同料號歷史產能,排除程式 / 解析度設定變更", "檢查上下料自動化是否等待或卡板",
+               "檢查 XY 平台速度與伺服警報紀錄", "檢查對位重試次數是否增加"]}
+  ]
+}

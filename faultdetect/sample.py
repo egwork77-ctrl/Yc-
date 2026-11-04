@@ -203,5 +203,51 @@ def write_d8_results(path, panels=200, seed=9):
                     w.writerow({**base, "result": "NG", "defect_type": dtype, "location": loc, "verdict": verdict})
 
 
-SAMPLES = {"d8-history": write_d8_history, "d8-log": write_d8_log, "d8-results": write_d8_results,
+F22 = ("FUS22-1", "FUS22-2")
+F22_FIELDS = ["timestamp", "machine_id", "light_ch1", "light_ch2", "light_ch3", "focus_score", "vacuum_kpa",
+              "air_pressure", "registration_score", "stage_error_um", "temperature", "sides_per_hour",
+              "run_hours", "light_hours", "panel_count"]
+
+
+def write_f22_history(path, days=30, seed=22):
+    """2 台 Fusion 22:FUS22-1 照明通道 2 衰減、FUS22-2 XY 定位誤差上升 + 產能下滑。"""
+    rnd = random.Random(seed)
+    start = datetime(2026, 1, 1, 0, 0)
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=F22_FIELDS)
+        w.writeheader()
+        for n, mid in enumerate(F22):
+            for i in range(days * 4):
+                d = i / 4
+                v = dict(light_ch1=97 + rnd.gauss(0, 0.4), light_ch2=97 + rnd.gauss(0, 0.4),
+                         light_ch3=97 + rnd.gauss(0, 0.4), focus_score=92 + rnd.gauss(0, 0.5),
+                         vacuum_kpa=80 + rnd.gauss(0, 0.6), air_pressure=6.2 + rnd.gauss(0, 0.05),
+                         registration_score=0.96 + rnd.gauss(0, 0.004), stage_error_um=1.5 + rnd.gauss(0, 0.15),
+                         temperature=22 + rnd.gauss(0, 0.2), sides_per_hour=240 + rnd.gauss(0, 3))
+                if mid == "FUS22-1":
+                    v["light_ch2"] -= d * 0.32
+                else:
+                    v["stage_error_um"] += d * 0.11
+                    v["sides_per_hour"] -= d * 0.9
+                v["run_hours"] = 8000 + n * 3000 + d * 20
+                v["light_hours"] = 4000 + n * 2000 + d * 20
+                v["panel_count"] = int(d * 2500)
+                w.writerow({"timestamp": (start + timedelta(hours=6 * i)).isoformat(timespec="minutes"),
+                            "machine_id": mid, **{k: round(x, 3) for k, x in v.items()}})
+
+
+def write_f22_log(path):
+    items = ["掃描鏡頭 / 保護玻璃清潔", "真空吸附平台清潔", "多光源照明與影像校正(校正片)",
+             "空壓過濾器排水 / 濾芯檢查", "散熱風扇濾網清潔", "XY 平台導軌潤滑", "真空幫浦保養"]
+    dates = ["2026-01-28", "2026-01-27", "2026-01-20", "2026-01-15", "2025-12-15", "2025-12-20", "2025-11-01"]
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["date", "machine_id", "item", "light_hours"])
+        for mid in F22:
+            w.writerows([(d, mid, it, "") for it, d in zip(items, dates)])
+            w.writerow(("2025-06-01", mid, "照明光源模組檢查 / 更換(依原廠壽命)", "0"))
+
+
+SAMPLES = {"f22-history": write_f22_history, "f22-log": write_f22_log,
+           "d8-history": write_d8_history, "d8-log": write_d8_log, "d8-results": write_d8_results,
            "aoi-history": write_aoi_history, "maintenance-log": write_maintenance_log, "generic": write_sample, "aoi": write_aoi_sensors, "aoi-results": write_aoi_results}

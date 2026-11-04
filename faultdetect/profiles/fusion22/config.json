@@ -1,0 +1,25 @@
+{
+  "_說明": "KLA (Orbotech) Fusion 22 裸板 AOI,繼承 discovery8。多影像技術:同次掃描以多組照明取像,故分通道監測。門檻/週期為暫定值,請依原廠手冊調整。",
+  "extends": "discovery8",
+  "sensors": {
+    "lamp_intensity": null,
+    "scan_time": null,
+    "light_ch1":      {"name": "照明通道1(%基準)", "min_alarm": 75, "min_warn": 85},
+    "light_ch2":      {"name": "照明通道2(%基準)", "min_alarm": 75, "min_warn": 85},
+    "light_ch3":      {"name": "照明通道3(%基準)", "min_alarm": 75, "min_warn": 85},
+    "sides_per_hour": {"name": "產能(面/小時)",     "min_alarm": 170, "min_warn": 200}
+  },
+  "trend_slope_fall_warn": {"lamp_intensity": null, "light_ch1": 0.3, "light_ch2": 0.3, "light_ch3": 0.3,
+                            "sides_per_hour": 1.0},
+  "unstable_cv": {"scan_time": null, "sides_per_hour": 0.1},
+  "maintenance": [
+    {"item": "掃描鏡頭 / 保護玻璃清潔", "every_days": 7},
+    {"item": "真空吸附平台清潔", "every_days": 7},
+    {"item": "多光源照明與影像校正(校正片)", "every_days": 30},
+    {"item": "空壓過濾器排水 / 濾芯檢查", "every_days": 30},
+    {"item": "散熱風扇濾網清潔", "every_days": 90},
+    {"item": "照明光源模組檢查 / 更換(依原廠壽命)", "every_hours": 10000, "counter": "light_hours"},
+    {"item": "XY 平台導軌潤滑", "every_hours": 2000, "counter": "run_hours"},
+    {"item": "真空幫浦保養", "every_hours": 4000, "counter": "run_hours"}
+  ]
+}

@@ -7,8 +7,16 @@ LEVEL_WEIGHT = {"info": 0.5, "warn": 1.0, "alarm": 1.5}
 
 
 def load_kb(path=None, profile="generic"):
+    """讀取知識庫;支援 "extends" 繼承,同 id 覆寫,"remove" 移除。"""
     with open(path or PROFILES_DIR / profile / "knowledge_base.json", encoding="utf-8") as f:
-        return json.load(f)["faults"]
+        kb = json.load(f)
+    if not kb.get("extends"):
+        return kb["faults"]
+    faults = {f["id"]: f for f in load_kb(profile=kb["extends"])}
+    for fid in kb.get("remove", []):
+        faults.pop(fid, None)
+    faults.update({f["id"]: f for f in kb.get("faults", [])})
+    return list(faults.values())
 
 
 def diagnose(symptoms, kb=None, min_score=0.3):

@@ -6,7 +6,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 PROFILES_DIR = Path(__file__).with_name("profiles")
-PROFILES = ("discovery8", "aoi", "generic")
+PROFILES = ("discovery8", "fusion22", "aoi", "generic")
 LEVEL_RANK = {"info": 0, "warn": 1, "alarm": 2}
 
 
@@ -23,9 +23,25 @@ class Finding:
         return asdict(self)
 
 
+def _merge(base, over):
+    """字典深層合併;值為 null 代表刪除該鍵,清單整個取代。"""
+    out = dict(base)
+    for k, v in over.items():
+        if v is None:
+            out.pop(k, None)
+        elif isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
 def load_config(path=None, profile="generic"):
+    """讀取設定;支援 "extends": "<profile>" 繼承另一機型。"""
     with open(path or PROFILES_DIR / profile / "config.json", encoding="utf-8") as f:
-        return json.load(f)
+        cfg = json.load(f)
+    parent = cfg.pop("extends", None)
+    return _merge(load_config(profile=parent), cfg) if parent else cfg
 
 
 def read_rows(path_or_file):
