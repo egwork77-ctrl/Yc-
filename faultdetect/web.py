@@ -9,7 +9,7 @@ from . import detector, engine
 
 PAGE = """<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AOI 預知保養</title><style>
+<title>Discovery 8 預知保養</title><style>
 body{font-family:system-ui,sans-serif;max-width:900px;margin:auto;padding:16px;background:#f6f7f9;color:#222}
 textarea{width:100%;height:160px;font-family:monospace}
 .card{background:#fff;border-radius:8px;padding:12px 16px;margin:12px 0;box-shadow:0 1px 3px #0002}
@@ -17,7 +17,7 @@ td{padding:2px 10px}.alarm{border-left:6px solid #d33}.warn{border-left:6px soli
 button{padding:8px 16px;font-size:15px}small{color:#666}
 </style></head><body>
 <h1>AOI 機台預知保養與故障排除</h1>
-<div class="card"><p>機台類型:<select id="profile"><option value="aoi">AOI 電路板檢測</option><option value="generic">一般機台</option></select>
+<div class="card"><p>機台類型:<select id="profile"><option value="discovery8">Orbotech Discovery 8(裸板 AOI)</option><option value="aoi">SMT AOI</option><option value="generic">一般機台</option></select>
 <small>(AOI 檢測結果 CSV 會自動辨識)</small></p>
 <p>上傳 CSV 或直接貼上內容:</p>
 <input type="file" id="file" accept=".csv"><br><br>
@@ -97,7 +97,7 @@ class Handler(BaseHTTPRequestHandler):
         from . import predict
         try:
             body = json.loads(text)
-            profile = body.get("profile", "aoi")
+            profile = body.get("profile", "discovery8")
             if profile not in detector.PROFILES:
                 raise ValueError(f"未知機台類型 {profile}")
             log = io.StringIO(body["log"]) if body.get("log", "").strip() else None

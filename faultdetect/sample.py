@@ -128,4 +128,80 @@ def write_maintenance_log(path):
         w.writerows(rows)
 
 
-SAMPLES = {"aoi-history": write_aoi_history, "maintenance-log": write_maintenance_log, "generic": write_sample, "aoi": write_aoi_sensors, "aoi-results": write_aoi_results}
+D8 = ("DIS8-1", "DIS8-2", "DIS8-3")
+D8_FIELDS = ["timestamp", "machine_id", "lamp_intensity", "focus_score", "vacuum_kpa", "air_pressure",
+             "registration_score", "stage_error_um", "temperature", "scan_time",
+             "run_hours", "lamp_hours", "panel_count"]
+
+
+def write_d8_history(path, days=30, seed=8):
+    """3 台 Discovery 8:DIS8-1 真空緩降、DIS8-2 燈管衰減、DIS8-3 健康。"""
+    rnd = random.Random(seed)
+    start = datetime(2026, 1, 1, 0, 0)
+    init = {"DIS8-1": (31000, 900), "DIS8-2": (42000, 1380), "DIS8-3": (27000, 300)}
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=D8_FIELDS)
+        w.writeheader()
+        for mid in D8:
+            for i in range(days * 4):
+                d = i / 4
+                v = dict(lamp_intensity=97 + rnd.gauss(0, 0.4), focus_score=91 + rnd.gauss(0, 0.5),
+                         vacuum_kpa=78 + rnd.gauss(0, 0.6), air_pressure=6.2 + rnd.gauss(0, 0.05),
+                         registration_score=0.95 + rnd.gauss(0, 0.004), stage_error_um=2 + rnd.gauss(0, 0.2),
+                         temperature=22 + rnd.gauss(0, 0.2), scan_time=42 + rnd.gauss(0, 0.8))
+                if mid == "DIS8-1":
+                    v["vacuum_kpa"] -= d * 0.55
+                elif mid == "DIS8-2":
+                    v["lamp_intensity"] -= d * 0.3
+                v["run_hours"] = init[mid][0] + d * 20
+                v["lamp_hours"] = init[mid][1] + d * 20
+                v["panel_count"] = int(d * 1500)
+                w.writerow({"timestamp": (start + timedelta(hours=6 * i)).isoformat(timespec="minutes"),
+                            "machine_id": mid, **{k: round(x, 3) for k, x in v.items()}})
+
+
+def write_d8_log(path):
+    rows = []
+    for mid in D8:
+        rows += [(mid, "掃描鏡頭 / 保護玻璃清潔", "2026-01-28", ""), (mid, "真空吸附平台清潔", "2026-01-27", ""),
+                 (mid, "照明與影像校正(校正片)", "2026-01-20", ""), (mid, "空壓過濾器排水 / 濾芯檢查", "2026-01-15", ""),
+                 (mid, "散熱風扇濾網清潔", "2025-12-15", ""), (mid, "XY 平台導軌潤滑", "2025-12-20", ""),
+                 (mid, "真空幫浦保養", "2025-11-01", "")]
+    rows += [("DIS8-1", "照明燈管更換", "2025-11-01", "400"), ("DIS8-2", "照明燈管更換", "2025-09-01", "600"),
+             ("DIS8-3", "照明燈管更換", "2026-01-15", "0")]
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["date", "machine_id", "item", "lamp_hours"])
+        w.writerows([(d, m, it, lh) for m, it, d, lh in rows])
+
+
+def write_d8_results(path, panels=200, seed=9):
+    """DIS8-1 正常、DIS8-2 同座標重複斷路(底片缺陷)、DIS8-3 短路偏多(蝕刻不足)。"""
+    rnd = random.Random(seed)
+    start = datetime(2026, 1, 1, 8, 0)
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["timestamp", "machine_id", "board_id", "result",
+                                          "defect_type", "location", "verdict"])
+        w.writeheader()
+        for mid in D8:
+            for b in range(panels):
+                ts = (start + timedelta(seconds=90 * b)).isoformat(timespec="seconds")
+                calls = []
+                if rnd.random() < 0.05:
+                    calls.append((rnd.choice(["nick", "protrusion", "pinhole"]),
+                                  f"X{rnd.randint(1, 500)}Y{rnd.randint(1, 600)}", "false"))
+                if rnd.random() < 0.01:
+                    calls.append((rnd.choice(["open", "short"]), f"X{rnd.randint(1, 500)}Y{rnd.randint(1, 600)}", "real"))
+                if mid == "DIS8-2" and rnd.random() < 0.06:
+                    calls.append(("open", "X212Y348", "real"))
+                if mid == "DIS8-3" and rnd.random() < 0.08:
+                    calls.append(("short", f"X{rnd.randint(1, 500)}Y{rnd.randint(1, 600)}", "real"))
+                base = {"timestamp": ts, "machine_id": mid, "board_id": f"{mid}-{b:04d}"}
+                if not calls:
+                    w.writerow({**base, "result": "PASS", "defect_type": "", "location": "", "verdict": ""})
+                for dtype, loc, verdict in calls:
+                    w.writerow({**base, "result": "NG", "defect_type": dtype, "location": loc, "verdict": verdict})
+
+
+SAMPLES = {"d8-history": write_d8_history, "d8-log": write_d8_log, "d8-results": write_d8_results,
+           "aoi-history": write_aoi_history, "maintenance-log": write_maintenance_log, "generic": write_sample, "aoi": write_aoi_sensors, "aoi-results": write_aoi_results}

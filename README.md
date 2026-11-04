@@ -1,15 +1,23 @@
 # AOI 機台預知保養與故障排除系統
 
+目前主要對象：**3 台 Orbotech Discovery 8（裸板 AOI）**，profile 為 `discovery8`（預設）。
+
 **在故障發生前就預警。** 從機台感測資料的長期趨勢，預測幾天後會超標，
 再搭配定期保養週期（天數、運轉時數、過板數），列出保養待辦和處理步驟。
 
 ## 預知保養（主要功能）
 
 ```bash
-python -m faultdetect sample samples/aoi_history.csv --type aoi-history
-python -m faultdetect sample samples/maintenance_log.csv --type maintenance-log
-python -m faultdetect predict samples/aoi_history.csv --log samples/maintenance_log.csv
+python -m faultdetect predict samples/d8_history.csv --log samples/d8_maintenance_log.csv
+python -m faultdetect analyze samples/d8_results.csv --profile discovery8   # 檢測結果 / VRS 複判分析
 ```
+
+Discovery 8 監測項目：照明亮度、影像清晰度、平台真空、氣源壓力、對位分數、XY 定位誤差、
+光學室溫度、掃描時間，以及累計計數 `run_hours`、`lamp_hours`、`panel_count`。
+裸板缺陷代碼：`short` `open` `nick` `protrusion` `pinhole` `island` `narrow` `wide` `spacing` `registration`
+
+> ⚠️ `profiles/discovery8/config.json` 中的門檻與保養週期都是**暫定值**，
+> 請依原廠手冊 / KLA 服務建議與機台實際基準值調整。
 
 - **趨勢預測**：用最近 14 天的資料做線性回歸，算出距離警告／警報門檻還有幾天（R² 太低時判定為穩定，不做預測）
 - **健康度 0–100**：從基準值到警報值，還剩多少空間

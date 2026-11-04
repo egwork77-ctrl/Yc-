@@ -1,0 +1,140 @@
+{
+  "_說明": "Orbotech Discovery 8 裸板 AOI。門檻與保養週期為暫定值,請依原廠手冊 / 實際基準調整。",
+  "sensors": {
+    "lamp_intensity": {
+      "name": "照明亮度(%基準)",
+      "min_alarm": 75,
+      "min_warn": 85
+    },
+    "focus_score": {
+      "name": "影像清晰度",
+      "min_alarm": 70,
+      "min_warn": 80
+    },
+    "vacuum_kpa": {
+      "name": "平台真空(kPa)",
+      "min_alarm": 50,
+      "min_warn": 60
+    },
+    "air_pressure": {
+      "name": "氣源壓力(bar)",
+      "min_alarm": 5.0,
+      "min_warn": 5.5,
+      "max_warn": 7.0
+    },
+    "registration_score": {
+      "name": "對位分數",
+      "min_alarm": 0.7,
+      "min_warn": 0.85
+    },
+    "stage_error_um": {
+      "name": "XY 定位誤差(μm)",
+      "max_warn": 5,
+      "max_alarm": 10
+    },
+    "temperature": {
+      "name": "光學室溫度(°C)",
+      "max_warn": 26,
+      "max_alarm": 28
+    },
+    "scan_time": {
+      "name": "單面掃描時間(s)",
+      "max_warn": 60,
+      "max_alarm": 80
+    }
+  },
+  "zscore_limit": 3.0,
+  "trend_window": 10,
+  "trend_slope_warn": {
+    "temperature": 0.3,
+    "stage_error_um": 0.3
+  },
+  "trend_slope_fall_warn": {
+    "lamp_intensity": 0.3,
+    "focus_score": 0.5,
+    "vacuum_kpa": 0.5
+  },
+  "unstable_cv": {
+    "air_pressure": 0.08,
+    "scan_time": 0.15
+  },
+  "predict": {
+    "window_days": 14,
+    "min_points": 5,
+    "min_r2": 0.5,
+    "urgent_days": 3,
+    "soon_days": 14
+  },
+  "maintenance": [
+    {
+      "item": "掃描鏡頭 / 保護玻璃清潔",
+      "every_days": 7
+    },
+    {
+      "item": "真空吸附平台清潔",
+      "every_days": 7
+    },
+    {
+      "item": "照明與影像校正(校正片)",
+      "every_days": 30
+    },
+    {
+      "item": "空壓過濾器排水 / 濾芯檢查",
+      "every_days": 30
+    },
+    {
+      "item": "散熱風扇濾網清潔",
+      "every_days": 90
+    },
+    {
+      "item": "照明燈管更換",
+      "every_hours": 1500,
+      "counter": "lamp_hours"
+    },
+    {
+      "item": "XY 平台導軌潤滑",
+      "every_hours": 2000,
+      "counter": "run_hours"
+    },
+    {
+      "item": "真空幫浦保養",
+      "every_hours": 4000,
+      "counter": "run_hours"
+    }
+  ],
+  "results": {
+    "min_calls": 10,
+    "ng_board_rate": {
+      "warn": 0.05,
+      "alarm": 0.1
+    },
+    "defect_rate": {
+      "warn": 0.02,
+      "alarm": 0.05
+    },
+    "machine_defect": "registration",
+    "machine_defect_rate": {
+      "warn": 0.01,
+      "alarm": 0.03
+    },
+    "concentrated_share": 0.4,
+    "repeat_min_count": 5,
+    "false_call_per_board": {
+      "warn": 3,
+      "alarm": 6
+    },
+    "_false_call_per_board": "每片(每面)誤判點數門檻,請依 VRS 實際數據調整"
+  },
+  "defect_names": {
+    "short": "短路",
+    "open": "斷路",
+    "nick": "缺口",
+    "protrusion": "凸出",
+    "pinhole": "針孔",
+    "island": "殘銅",
+    "narrow": "線細",
+    "wide": "線粗",
+    "spacing": "間距不足",
+    "registration": "對位失敗"
+  }
+}

@@ -7,8 +7,10 @@ def run(source, profile="generic", config_path=None):
     if not rows:
         raise ValueError("沒有資料")
     if aoi.is_results(rows):
-        profile = "aoi"
         cfg = detector.load_config(config_path, profile)
+        if "results" not in cfg:
+            profile = "aoi"
+            cfg = detector.load_config(config_path, profile)
         findings = aoi.analyze_results(rows, cfg)
     else:
         cfg = detector.load_config(config_path, profile)

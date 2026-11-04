@@ -1,6 +1,6 @@
 """命令列介面。
 
-  python -m faultdetect predict samples/aoi_history.csv --log samples/maintenance_log.csv
+  python -m faultdetect predict samples/d8_history.csv --log samples/d8_maintenance_log.csv
   python -m faultdetect analyze samples/sensors.csv [--profile aoi] [--json]
   python -m faultdetect diagnose temperature_high vibration_high [--profile aoi]
   python -m faultdetect symptoms [--profile aoi]
@@ -78,7 +78,7 @@ def main(argv=None):
     pr = sub.add_parser("predict", help="預知保養:預測何時超標 + 定期保養到期")
     pr.add_argument("csv", help="含 timestamp 的歷史感測資料")
     pr.add_argument("--log", help="保養紀錄 CSV (date, machine_id, item)")
-    pr.add_argument("--profile", choices=detector.PROFILES, default="aoi")
+    pr.add_argument("--profile", choices=detector.PROFILES, default="discovery8")
     pr.add_argument("--config")
     pr.add_argument("--json", action="store_true")
 
@@ -95,7 +95,8 @@ def main(argv=None):
 
     g = sub.add_parser("sample", help="產生範例資料")
     g.add_argument("out")
-    g.add_argument("--type", choices=["generic", "aoi", "aoi-results", "aoi-history", "maintenance-log"], default="generic")
+    g.add_argument("--type", choices=["generic", "aoi", "aoi-results", "aoi-history", "maintenance-log",
+                                       "d8-history", "d8-log", "d8-results"], default="generic")
 
     args = p.parse_args(argv)
 
