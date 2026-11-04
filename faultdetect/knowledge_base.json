@@ -1,0 +1,99 @@
+{
+  "faults": [
+    {
+      "id": "bearing_wear",
+      "name": "軸承磨損 / 潤滑不足",
+      "symptoms": {"vibration_high": 3, "temperature_high": 1, "vibration_spike": 1},
+      "steps": [
+        "停機並上鎖掛牌 (LOTO)",
+        "檢查軸承潤滑油脂量與狀態,必要時補充或更換",
+        "手轉主軸,確認有無卡滯、異音",
+        "量測軸承振動頻譜,確認是否有軸承缺陷頻率",
+        "磨損嚴重則更換軸承"
+      ]
+    },
+    {
+      "id": "misalignment",
+      "name": "轉軸不對心 / 不平衡",
+      "symptoms": {"vibration_high": 3, "rpm_unstable": 2},
+      "steps": [
+        "檢查聯軸器與底座固定螺絲是否鬆動",
+        "以雷射對心儀或千分表重新對心",
+        "檢查轉子/葉輪是否有附著物或缺損,必要時做動平衡"
+      ]
+    },
+    {
+      "id": "motor_overload",
+      "name": "馬達過載",
+      "symptoms": {"current_high": 3, "temperature_high": 2, "rpm_low": 2},
+      "steps": [
+        "確認負載是否超出額定(進料量、刀具鈍化、卡料)",
+        "檢查傳動機構是否卡滯",
+        "量測三相電流是否平衡",
+        "檢查馬達絕緣電阻與散熱風扇"
+      ]
+    },
+    {
+      "id": "cooling_failure",
+      "name": "冷卻系統故障",
+      "symptoms": {"temperature_high": 3, "temperature_rising": 3},
+      "steps": [
+        "檢查冷卻液/冷卻水液位與流量",
+        "清潔散熱鰭片、濾網與風扇",
+        "確認冷卻泵浦運轉正常",
+        "檢查溫度感測器是否校正正確"
+      ]
+    },
+    {
+      "id": "pressure_leak",
+      "name": "油壓 / 氣壓洩漏",
+      "symptoms": {"pressure_low": 4},
+      "steps": [
+        "目視檢查管路、接頭、油封有無滲漏",
+        "檢查油箱液位或空壓機供氣壓力",
+        "檢查減壓閥/調壓閥設定",
+        "更換損壞的油封或軟管"
+      ]
+    },
+    {
+      "id": "pipe_blockage",
+      "name": "管路 / 濾網堵塞",
+      "symptoms": {"pressure_high": 3, "current_high": 1},
+      "steps": [
+        "檢查並清潔或更換濾芯",
+        "確認閥門開度正確,無誤關",
+        "檢查管路是否有異物或彎折"
+      ]
+    },
+    {
+      "id": "belt_slip",
+      "name": "皮帶打滑 / 傳動鬆脫",
+      "symptoms": {"rpm_unstable": 2, "rpm_low": 2, "current_low": 2},
+      "steps": [
+        "檢查皮帶張力,依規格調整",
+        "檢查皮帶是否龜裂、磨損,必要時更換",
+        "檢查皮帶輪是否鬆動或磨損"
+      ]
+    },
+    {
+      "id": "power_issue",
+      "name": "電源異常 / 缺相",
+      "symptoms": {"current_unstable": 3, "current_low": 1, "rpm_low": 1},
+      "steps": [
+        "量測供電電壓與三相是否平衡",
+        "檢查電源端子、接觸器是否鬆脫或燒蝕",
+        "檢查變頻器 (VFD) 異常代碼"
+      ]
+    },
+    {
+      "id": "sensor_fault",
+      "name": "感測器異常",
+      "symptoms": {"sensor_missing": 4},
+      "steps": [
+        "檢查感測器配線與接頭",
+        "比對手持儀表量測值,確認感測器是否失準",
+        "必要時更換感測器"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "_說明": "各感測器門檻值。warn=警告, alarm=警報。min/max 方向分開設定。",
+  "sensors": {
+    "temperature": {"name": "溫度(°C)",   "max_warn": 70,  "max_alarm": 85},
+    "vibration":   {"name": "振動(mm/s)", "max_warn": 4.5, "max_alarm": 7.1},
+    "current":     {"name": "電流(A)",    "min_warn": 5,   "max_warn": 18, "max_alarm": 22},
+    "pressure":    {"name": "壓力(bar)",  "min_alarm": 3,  "min_warn": 4,  "max_warn": 8, "max_alarm": 9.5},
+    "rpm":         {"name": "轉速(RPM)",  "min_alarm": 1200, "min_warn": 1350}
+  },
+  "zscore_limit": 3.0,
+  "trend_window": 10,
+  "trend_slope_warn": {"temperature": 0.5},
+  "unstable_cv": {"rpm": 0.05, "current": 0.15}
+}
