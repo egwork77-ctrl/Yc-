@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import detector, diagnosis, engine, predict
+from . import detector, diagnosis, engine, predict, vibration
 from .live import Live, LogWatcher
 
 STATIC_DIR = Path(__file__).with_name("static")
@@ -175,15 +175,36 @@ async function machine(id){const ov=S.ov||await load();const m=ov.machines.find(
  V.innerHTML=`<div class="card ${m.level}"><h2>${esc(m.name)}</h2><div class="muted">${esc(m.machine_id)} · ${esc(m.model)} · 資料至 ${esc(m.as_of||'—')}</div>
  <p>健康度 <b>${m.health}</b></p><div class="bar"><i style="width:${m.health}%;background:${hcol(m.health)}"></i></div>
  <div class="row" style="margin-top:14px"><button onclick="go('faults','${esc(id)}')">🔧 開始排除故障</button></div></div>
- ${m.model3d?`<div class="card"><h3>🧊 3D 機台</h3><p class="muted">拖曳旋轉、雙指縮放,點選零件查看資料(外型依現場照片估計)</p>
+ ${m.model3d?`<div class="card"><h3>🧊 3D 機台</h3><p class="muted">拖曳旋轉、雙指縮放,點選零件查看資料(外型依現場照片估計,內部機構為示意)</p>
  <div id="m3d" style="height:min(60vh,460px);border-radius:12px;overflow:hidden;touch-action:none"></div>
- <div class="row" style="margin-top:10px"><button class="ghost" onclick="this.textContent=m3d.toggleXray()?'👁 透視:開':'👁 透視:關'">👁 透視:開</button>
+ <div class="row" style="margin-top:10px" id="m3dmode">${[['xray','👁 透視'],['solid','外觀'],['mech','⚙️ 機構'],['mesh','▦ 網格']].map(([k,t])=>
+ `<button class="${k==='xray'?'':'ghost'}" data-m="${k}" onclick="m3d.setMode('${k}');document.querySelectorAll('#m3dmode button[data-m]').forEach(b=>b.className=b.dataset.m==='${k}'?'':'ghost')">${t}</button>`).join('')}</div>
+ <div class="row" style="margin-top:10px"><button class="ghost" onclick="this.textContent=m3d.toggleAnim()?'⏸ 暫停動作':'▶ 掃描動作'">⏸ 暫停動作</button>
  <button class="ghost" onclick="m3d.reset()">↺ 重設視角</button></div><div id="pinfo" style="margin-top:10px" class="muted">點選零件查看資料</div></div>`:''}
+ <div id="vib"></div>
  <div class="card"><h3>零件健康度</h3><div style="overflow-x:auto"><table><tr>${PH}</tr>${m.parts.map(p=>partRow(p)).join('')}</table></div></div>
  <div class="card"><h3>保養待辦</h3><ul>${m.tasks.map(t=>`<li>${LV[t.level]} [${esc(t.type)}] ${esc(t.item)} → ${esc(t.action)}(${dd(t.due_days)})</li>`).join('')||'<li>無</li>'}</ul>
  <h3>感測趨勢</h3><table><tr><th>項目</th><th>現值</th><th>趨勢</th><th>健康</th><th>預計超標</th></tr>${m.predictions.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.current}</td>
  <td>${p.r2>=0.5?(p.slope_per_day>0?'+':'')+p.slope_per_day+'/天':'穩定'}</td><td>${p.health}</td><td>${dd(p.due_days)}</td></tr>`).join('')}</table></div>`;
- show3d(m);}
+ show3d(m);showVib(m);}
+function vibChart(v){const W=640,H=260,L=56,R=12,Tp=14,B=40,fx=W-L-R,fy=H-Tp-B;
+ const ymax=Math.max(...v.latest_curve.map(p=>p[1]),...v.base_curve.map(p=>p[1]))*1.1||1;
+ const X=f=>L+f/v.fmax*fx,Y=a=>Tp+fy-a/ymax*fy,path=c=>c.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join('');
+ const nice=x=>{const e=10**Math.floor(Math.log10(x)),m=x/e;return (m<=1?1:m<=2?2:m<=5?5:10)*e;},fs=nice(v.fmax/5);
+ let g='';for(let f=0;f<=v.fmax+1e-9;f+=fs)g+=`<line x1="${X(f)}" y1="${Tp}" x2="${X(f)}" y2="${Tp+fy}" stroke="var(--line)"/><text x="${X(f)}" y="${H-22}" font-size="11" text-anchor="middle" fill="var(--muted)">${f}</text>`;
+ for(let i=0;i<=5;i++){const a=ymax*i/5;
+  g+=`<line x1="${L}" y1="${Y(a)}" x2="${L+fx}" y2="${Y(a)}" stroke="var(--line)"/><text x="${L-6}" y="${Y(a)+4}" font-size="11" text-anchor="end" fill="var(--muted)">${a.toFixed(2)}</text>`;}
+ const pk=v.peaks.filter(p=>p.vs_base>=3).map(p=>`<circle cx="${X(p.freq)}" cy="${Y(p.amp)}" r="5" fill="none" stroke="var(--red)" stroke-width="2"/>
+  <text x="${X(p.freq)+8}" y="${Y(p.amp)-6}" font-size="12" fill="var(--red)">${p.freq} Hz ×${p.vs_base}</text>`).join('');
+ return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${g}
+ <path d="${path(v.base_curve)}" fill="none" stroke="#9ca3af" stroke-width="1.5"/><path d="${path(v.latest_curve)}" fill="none" stroke="#dc2626" stroke-width="2"/>${pk}
+ <text x="${L+fx/2}" y="${H-4}" font-size="12" text-anchor="middle" fill="var(--muted)">頻率 (Hz)</text>
+ <text x="14" y="${Tp+fy/2}" font-size="12" text-anchor="middle" fill="var(--muted)" transform="rotate(-90 14 ${Tp+fy/2})">振幅</text></svg>`;}
+async function showVib(m){const el=$('#vib');if(!el)return;const v=await api('/api/vibration?machine_id='+encodeURIComponent(m.machine_id));
+ if(!v.captures){el.innerHTML=`<div class="card"><h3>📈 振動頻譜</h3><p class="muted">尚無振動資料。在 XY 平台馬達裝振動感測器,把量測檔放到 vibration/${esc(m.machine_id)}/ 即可分析。</p></div>`;return;}
+ el.innerHTML=`<div class="card ${v.level}"><h3>📈 振動頻譜(${esc(v.latest)})</h3>
+ <div class="muted">紅線:最新量測 · 灰線:基準(${esc(v.baseline)}) · 整體 RMS ${v.rms_latest}(基準的 ${v.rms_ratio} 倍)</div>${vibChart(v)}
+ ${v.findings.length?`<ul>${v.findings.map(f=>`<li>${LV[v.level]} ${esc(f)}</li>`).join('')}</ul><button onclick="go('faults','${esc(m.machine_id)}')">🔧 排除 XY 平台問題</button>`:'<p>🟢 頻譜與基準相比無明顯變化</p>'}</div>`;}
 
 const msel=(ov,id)=>`<select id="msel">${ov.machines.map(m=>`<option value="${esc(m.machine_id)}">${esc(m.name)}(${esc(m.machine_id)})</option>`).join('')}</select>`;
 let lastM=null;
@@ -532,6 +553,10 @@ def make_handler(app):
                     return self._send(200, app.form(q.get("machine_id", [""])[0]))
                 if url.path == "/api/spares":
                     return self._send(200, app.spares())
+                if url.path == "/api/vibration":
+                    mid = q.get("machine_id", [""])[0]
+                    app.profile_of(mid)
+                    return self._send(200, vibration.analyze(app.dir / "vibration" / mid) or {})
                 if url.path == "/api/live/events":
                     return self._send(200, app.live.events_config(q.get("machine_id", [""])[0]))
                 if url.path == "/api/live/active":

@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -16,6 +17,7 @@ class WebTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp()
+        shutil.copytree(SAMPLES / "vibration", Path(cls.tmp) / "vibration")
         for f in ("machines.json", "d8_history.csv", "d8_maintenance_log.csv",
                   "f22_history.csv", "f22_maintenance_log.csv", "spares.csv"):
             shutil.copy(SAMPLES / f, cls.tmp)
@@ -41,6 +43,17 @@ class WebTest(unittest.TestCase):
                          ["DIS8-1", "DIS8-2", "DIS8-3", "FUS22-1", "FUS22-2"])
         self.assertEqual(ov["errors"], [])
         self.assertTrue(ov["contacts"])
+
+    def test_vibration_api(self):
+        v = self.get("/api/vibration?machine_id=FUS22-2")
+        self.assertEqual(v["level"], "alarm")
+        self.assertEqual(self.get("/api/vibration?machine_id=DIS8-3"), {})
+
+    def test_static_js_and_traversal(self):
+        r = urllib.request.urlopen(self.base + "/static/model3d.js")
+        self.assertIn("AOI3D", r.read().decode())
+        with self.assertRaises(urllib.error.HTTPError):
+            urllib.request.urlopen(self.base + "/static/../web.py")
 
     def test_faults(self):
         ids = [f["id"] for f in self.get("/api/faults?profile=fusion22")]
@@ -84,3 +97,23 @@ class WebTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VibrationTest(unittest.TestCase):
+    def test_worn_vs_ok(self):
+        from faultdetect import vibration
+        with tempfile.TemporaryDirectory() as d:
+            vibration.write_sample(Path(d) / "a", "worn")
+            vibration.write_sample(Path(d) / "b", "ok")
+            worn, ok = vibration.analyze(Path(d) / "a"), vibration.analyze(Path(d) / "b")
+        self.assertEqual(worn["level"], "alarm")
+        self.assertEqual(worn["peaks"][0]["freq"], 157.2)
+        self.assertEqual(ok["level"], "ok")
+        self.assertIsNone(vibration.analyze(Path("/nonexistent")))
+
+    def test_fft_single_tone(self):
+        import math
+        from faultdetect import vibration
+        fs = 1000
+        f, a, _ = vibration.spectrum([math.sin(2 * math.pi * 125 * i / fs) for i in range(1024)], fs)
+        self.assertAlmostEqual(f[a.index(max(a))], 125, delta=1)
