@@ -189,5 +189,93 @@
       ],
       "lead_days": 7
     }
-  ]
+  ],
+  "events": [
+    {
+      "id": "false_call",
+      "name": "誤判多",
+      "symptoms": [
+        "false_call_high"
+      ]
+    },
+    {
+      "id": "registration_fail",
+      "name": "對位失敗",
+      "symptoms": [
+        "registration_fail_high",
+        "registration_score_low"
+      ]
+    },
+    {
+      "id": "board_not_held",
+      "name": "板子吸不住 / 板翹",
+      "symptoms": [
+        "vacuum_kpa_low"
+      ]
+    },
+    {
+      "id": "image_blur",
+      "name": "影像模糊",
+      "symptoms": [
+        "focus_score_low"
+      ]
+    },
+    {
+      "id": "image_dark",
+      "name": "影像偏暗 / 亮度不均",
+      "symptoms": [
+        "lamp_intensity_low",
+        "light_ch1_low",
+        "light_ch2_low",
+        "light_ch3_low"
+      ]
+    },
+    {
+      "id": "slow_scan",
+      "name": "掃描變慢",
+      "symptoms": [
+        "scan_time_high",
+        "sides_per_hour_low"
+      ]
+    },
+    {
+      "id": "stage_issue",
+      "name": "平台異音 / 定位偏移",
+      "symptoms": [
+        "stage_error_um_high",
+        "stage_error_um_rising"
+      ]
+    },
+    {
+      "id": "air_alarm",
+      "name": "氣壓警報",
+      "symptoms": [
+        "air_pressure_low"
+      ]
+    },
+    {
+      "id": "temp_alarm",
+      "name": "溫度警報",
+      "symptoms": [
+        "temperature_high"
+      ]
+    },
+    {
+      "id": "repeat_defect",
+      "name": "同位置連續缺陷",
+      "symptoms": [
+        "repeat_location"
+      ]
+    },
+    {
+      "id": "machine_stop",
+      "name": "警報停機",
+      "symptoms": [],
+      "alert_count": 1
+    }
+  ],
+  "event_rules": {
+    "count": 3,
+    "minutes": 30
+  }
 }

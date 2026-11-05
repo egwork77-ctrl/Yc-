@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from . import detector, diagnosis, engine, predict
+from .live import Live, LogWatcher
 
 STATIC_DIR = Path(__file__).with_name("static")
 STATIC_TYPES = {".js": "application/javascript", ".css": "text/css", ".glb": "model/gltf-binary"}
@@ -69,16 +70,21 @@ button,.btn{font-size:18px;padding:14px 18px;border-radius:12px;border:0;backgro
 button.ok{background:var(--green)}button.no{background:var(--amber)}button.ghost{background:var(--line);color:var(--fg)}button.danger{background:var(--red)}
 .num{display:flex;align-items:center;gap:8px;margin:8px 0}.num label{flex:2}.num input{flex:1;max-width:160px;font-size:20px}
 .stepper{display:flex;align-items:center;gap:8px}.stepper button{min-width:52px;padding:10px}.stepper b{min-width:36px;text-align:center;font-size:20px}
+.evgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.evgrid button{background:var(--card);color:var(--fg);border:2px solid var(--line);font-size:17px;min-height:68px}
+.evgrid button:active{background:var(--blue);color:#fff}.evgrid button b{display:block;font-size:22px;color:var(--blue)}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 18px;border-radius:999px;z-index:9}
+@media print{nav,.noprint{display:none}main{padding:0}.card{box-shadow:none;border:1px solid #ccc;break-inside:avoid}}
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>button{flex:1;min-width:150px}
 .step{font-size:24px;line-height:1.5;padding:24px 4px}
 textarea,input,select{width:100%;font-size:17px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
 textarea{min-height:90px}nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav a{flex:1;text-align:center;padding:12px 0;color:var(--muted);text-decoration:none;font-size:15px}nav a.on{color:var(--blue);font-weight:700}
+nav{overflow-x:auto}nav a{flex:1 0 76px;text-align:center;padding:12px 0;color:var(--muted);text-decoration:none;font-size:15px}nav a.on{color:var(--blue);font-weight:700}
 .tag{display:inline-block;font-size:13px;padding:2px 8px;border-radius:999px;background:var(--line);margin-right:6px}
 ul{padding-left:20px}li{margin:4px 0}table{border-collapse:collapse;width:100%}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left;font-size:15px}
 </style></head><body>
 <header id="title">AOI 現場排除</header><main id="view"></main>
-<nav><a href="#" data-v="overview">📊 總覽</a><a href="#" data-v="inspect">📋 點檢</a><a href="#" data-v="parts">📦 備料</a><a href="#" data-v="pick">🔧 排除故障</a><a href="#" data-v="records">📝 紀錄</a><a href="#" data-v="upload">📤 上傳分析</a></nav>
+<nav><a href="#" data-v="overview">📊 總覽</a><a href="#" data-v="live">▶️ 監看</a><a href="#" data-v="inspect">📋 點檢</a><a href="#" data-v="parts">📦 備料</a><a href="#" data-v="pick">🔧 排除故障</a><a href="#" data-v="records">📝 紀錄</a><a href="#" data-v="upload">📤 上傳分析</a></nav>
 <script>
 const $=s=>document.querySelector(s), V=$('#view');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -107,8 +113,53 @@ async function show3d(m){const el=$('#m3d');if(!el)return;
  m3d=AOI3D.mount(el,{model:m.model3d,parts:m.parts,onPick:id=>{const p=m.parts.find(x=>x.part_id===id);
   info.innerHTML=p?`<b>${esc(p.name)}</b> · 健康 ${p.health} · 預計更換 ${dd(p.due_days)} · 庫存 ${p.stock} · ${PS[p.status]}<div class="muted">${esc(p.reasons.join(';')||'目前無異常趨勢')}</div>`
   :`<b>${esc(id)}</b><div class="muted">尚無此零件資料</div>`;}});}
-function go(v,...a){cur=v;if(m3d){m3d.dispose();m3d=null;}nav(v==='machine'?'overview':['faults','step','end'].includes(v)?'pick':v);window.scrollTo(0,0);
- ({overview,machine,inspect,parts,pick,faults,step,end,records,upload})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
+let liveTimer=null;
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),1500);}
+const getSid=()=>{try{return localStorage.getItem('sid')}catch(e){return null}},setSid=v=>{try{v?localStorage.setItem('sid',v):localStorage.removeItem('sid')}catch(e){}};
+const sugg=(list,title)=>list.length?`<h3>${title}</h3>`+list.map(d=>`<div class="card warn"><span class="tag">${esc(d.category)}</span><b>${esc(d.name)}</b>
+ <span class="muted">${d.support?'相關事件 '+d.support+' 次 · ':''}信心 ${Math.round(d.confidence*100)}%</span><div class="muted" style="margin-top:6px">現場排除</div><ol>${d.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>
+ ${d.improve&&d.improve.length?`<div class="muted">根本改善</div><ul>${d.improve.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}</div>`).join(''):'';
+async function live(){const ov=S.ov||await load();let sid=getSid(),d=null;
+ if(sid){try{d=await api('/api/live?session_id='+sid);if(d.session.end){setSid(null);d=null;}}catch(e){setSid(null);d=null;}}
+ if(!d){V.innerHTML=`<div class="card"><h2>▶️ 作業監看</h2><p class="muted">機台作業時開著:有狀況就按一下記錄,短時間重複發生會立即警示並提出改善方法。</p>
+  ${msel(ov)}<br><br><input id="lop" placeholder="作業 / 監看人員"><br><br><button style="width:100%" onclick="startLive()">▶️ 開始監看</button></div>`;
+  if(lastM)$('#msel').value=lastM;try{$('#lop').value=localStorage.getItem('tech')||'';}catch(e){}return;}
+ const evs=await api('/api/live/events?machine_id='+encodeURIComponent(d.session.machine_id));
+ const m=ov.machines.find(x=>x.machine_id===d.session.machine_id)||{name:d.session.machine_id};
+ V.innerHTML=`<div class="card info"><h2>▶️ 監看中:${esc(m.name)}</h2><div class="muted">${esc(d.session.operator)} · 開始 ${esc(d.session.start.slice(11,16))} · 已進行 <span id="elapsed"></span></div></div>
+ <div class="card"><h3>有狀況就按(可連續按)</h3><div class="evgrid">${evs.map(e=>`<button onclick="logEv('${esc(e.id)}','${esc(e.name)}')">${esc(e.name)}<b id="c_${esc(e.id)}">0</b></button>`).join('')}</div>
+ <div class="row" style="margin-top:12px"><input id="lnote" placeholder="文字備註(現象、處理方式、想法…)" style="flex:3"><button style="flex:1" onclick="logNote()">📝 記錄</button></div></div>
+ <div id="lalerts"></div><div id="ltl"></div>
+ <div class="card noprint"><textarea id="lend" placeholder="結束前的總結(可空白)"></textarea><br><br><button class="danger" style="width:100%" onclick="endLive()">⏹ 結束並產生改善報告</button></div>`;
+ renderLive(d);clearInterval(liveTimer);liveTimer=setInterval(async()=>{if(cur!=='live')return clearInterval(liveTimer);
+  try{renderLive(await api('/api/live?session_id='+getSid()));}catch(e){}},5000);}
+function renderLive(d){const st=new Date(d.session.start);const min=Math.round((Date.now()-st)/60000);
+ if($('#elapsed'))$('#elapsed').textContent=min>=60?Math.floor(min/60)+' 小時 '+min%60+' 分':min+' 分';
+ document.querySelectorAll('[id^=c_]').forEach(b=>b.textContent=0);d.counts.forEach(c=>{const b=$('#c_'+c.event);if(b)b.textContent=c.count;});
+ $('#lalerts').innerHTML=(d.alerts.length?d.alerts.map(a=>`<div class="card alarm"><h2>⚠️ ${esc(a.name)}:${a.minutes} 分鐘內 ${a.count} 次</h2>${sugg(a.suggestions,'可能原因與對策')}</div>`).join(''):'')+
+  (d.overall.length?`<div class="card">${sugg(d.overall,'💡 依本場次記錄的綜合判斷')}</div>`:'');
+ $('#ltl').innerHTML=`<div class="card"><h3>記錄(最新在上)</h3><ul>${d.events.map(e=>`<li><span class="muted">${esc(e.time.slice(11,16))}</span> ${e.source==='log'?'🤖':'👆'}
+  ${esc(e.event==='note'?'📝':(d.counts.find(c=>c.event===e.event)||{name:e.event}).name)} ${esc(e.note)}</li>`).join('')||'<li class="muted">尚無記錄</li>'}</ul></div>`;}
+async function startLive(){const mid=$('#msel').value,op=$('#lop').value;lastM=mid;try{localStorage.setItem('tech',op);}catch(e){}
+ const s=await api('/api/live/start',{method:'POST',body:JSON.stringify({machine_id:mid,operator:op})});setSid(s.session_id);go('live');}
+async function logEv(id,name){await api('/api/live/event',{method:'POST',body:JSON.stringify({session_id:getSid(),event:id})});toast('已記錄:'+name);
+ renderLive(await api('/api/live?session_id='+getSid()));}
+async function logNote(){const n=$('#lnote').value.trim();if(!n)return;await api('/api/live/event',{method:'POST',body:JSON.stringify({session_id:getSid(),event:'note',note:n})});
+ $('#lnote').value='';toast('已記錄備註');renderLive(await api('/api/live?session_id='+getSid()));}
+async function endLive(){const sid=getSid();await api('/api/live/end',{method:'POST',body:JSON.stringify({session_id:sid,note:$('#lend').value})});setSid(null);S.ov=null;go('report',sid);}
+async function report(sid){const d=await api('/api/live/report?session_id='+sid);const ov=S.ov||await load();
+ const m=ov.machines.find(x=>x.machine_id===d.session.machine_id)||{name:d.session.machine_id};
+ V.innerHTML=`<div class="card"><h2>📄 改善報告:${esc(m.name)}</h2><table>
+ <tr><td>機台</td><td>${esc(m.name)}(${esc(d.session.machine_id)})</td></tr><tr><td>人員</td><td>${esc(d.session.operator)}</td></tr>
+ <tr><td>時間</td><td>${esc(d.session.start.replace('T',' '))} ~ ${esc((d.session.end||'進行中').replace('T',' '))}(${d.duration_min} 分鐘)</td></tr>
+ <tr><td>總結</td><td>${esc(d.session.note)||'—'}</td></tr></table>
+ <h3>事件統計</h3><table>${d.counts.map(c=>`<tr><td>${esc(c.event==='note'?'文字備註':c.name)}</td><td>${c.count} 次</td></tr>`).join('')||'<tr><td>無</td></tr>'}</table></div>
+ ${d.alerts.length?`<div class="card alarm"><h3>結束時仍在警示的問題</h3><ul>${d.alerts.map(a=>`<li>${esc(a.name)}:${a.minutes} 分鐘內 ${a.count} 次</li>`).join('')}</ul></div>`:''}
+ <div class="card">${sugg(d.overall,'💡 原因判斷與改善建議')||'<p class="muted">本場次沒有足夠事件做判斷</p>'}</div>
+ <div class="card"><h3>完整記錄</h3><ul>${d.events.slice().reverse().map(e=>`<li>${esc(e.time.slice(11,16))} ${e.source==='log'?'🤖':'👆'} ${esc(e.event==='note'?'📝':(d.counts.find(c=>c.event===e.event)||{name:e.event}).name)} ${esc(e.note)}</li>`).join('')}</ul></div>
+ <div class="row noprint"><button onclick="print()">🖨 列印 / 存 PDF</button><button class="ghost" onclick="go('records')">看所有紀錄</button></div>`;}
+function go(v,...a){cur=v;if(m3d){m3d.dispose();m3d=null;}nav(v==='machine'?'overview':v==='report'?'records':['faults','step','end'].includes(v)?'pick':v);window.scrollTo(0,0);
+ ({overview,machine,live,report,inspect,parts,pick,faults,step,end,records,upload})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
 async function load(){S.ov=await api('/api/overview');autoRefresh(S.ov.refresh||60);return S.ov;}
 
 async function overview(){V.innerHTML='<p class="muted">載入中…</p>';const ov=await load();
@@ -209,7 +260,8 @@ async function save(solved){const tech=$('#tech').value;try{localStorage.setItem
  V.innerHTML=`<div class="card"><h2>已儲存紀錄 👍</h2><div class="row"><button onclick="go('overview')">回總覽</button><button class="ghost" onclick="go('records')">看紀錄</button></div></div>`;}
 
 async function records(){const rs=await api('/api/repairs');const ov=S.ov||await load();
- V.innerHTML=`<div class="card"><h2>登錄保養 / 更換零件</h2><p class="muted">做完保養請登錄,系統才會從今天重新計算壽命與下次到期。</p>
+ const ss=await api('/api/live/sessions');
+ V.innerHTML=(ss.length?`<div class="card"><h2>監看改善報告</h2><ul>${ss.slice(0,20).map(x=>`<li class="tap" onclick="go('report','${esc(x.session_id)}')">📄 ${esc(x.start.replace('T',' ').slice(0,16))} · ${esc(x.machine_id)} · ${esc(x.operator)} ${x.end?'':'(進行中)'}</li>`).join('')}</ul></div>`:'')+`<div class="card"><h2>登錄保養 / 更換零件</h2><p class="muted">做完保養請登錄,系統才會從今天重新計算壽命與下次到期。</p>
  ${msel(ov)}<br><br><select id="mitem"></select><br><br><select id="mpart"></select><br><br>
  <input id="mtech" placeholder="處理人員"><br><br><textarea id="mnote" placeholder="備註"></textarea><br><br>
  <button onclick="sendMaint()" style="width:100%">💾 登錄保養</button><div id="mres"></div></div>`+'<h2>維修紀錄</h2>'+(rs.length?'<div class="card"><table><tr><th>時間</th><th>機台</th><th>問題</th><th>結果</th><th>人員</th><th>備註</th></tr>'+
@@ -246,6 +298,13 @@ class App:
         self.dir = Path(data_dir)
         f = self.dir / "machines.json"
         self.meta = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        self.live = Live(self.dir, self.meta, self.profile_of)
+
+    def profile_of(self, mid):
+        m = next((x for x in self.meta.get("machines", []) if x["id"] == mid), None)
+        if not m:
+            raise ValueError(f"未登錄的機台 {mid}")
+        return m["profile"]
 
     def overview(self):
         machines = {m["id"]: m for m in self.meta.get("machines", [])}
@@ -473,6 +532,16 @@ def make_handler(app):
                     return self._send(200, app.form(q.get("machine_id", [""])[0]))
                 if url.path == "/api/spares":
                     return self._send(200, app.spares())
+                if url.path == "/api/live/events":
+                    return self._send(200, app.live.events_config(q.get("machine_id", [""])[0]))
+                if url.path == "/api/live/active":
+                    return self._send(200, app.live.active(q.get("machine_id", [""])[0]) or {})
+                if url.path == "/api/live":
+                    return self._send(200, app.live.live(q.get("session_id", [""])[0]))
+                if url.path == "/api/live/report":
+                    return self._send(200, app.live.report(q.get("session_id", [""])[0]))
+                if url.path == "/api/live/sessions":
+                    return self._send(200, app.live.sessions())
                 self._send(404, {"error": "not found"})
             except Exception as e:  # noqa: BLE001
                 self._err(e)
@@ -486,6 +555,16 @@ def make_handler(app):
             try:
                 if url.path == "/api/repairs":
                     return self._send(200, app.add_repair(json.loads(text)))
+                if url.path.startswith("/api/live/"):
+                    b = json.loads(text)
+                    act = url.path.rsplit("/", 1)[1]
+                    if act == "start":
+                        return self._send(200, app.live.start(b.get("machine_id", ""), b.get("operator", "")))
+                    if act == "event":
+                        return self._send(200, app.live.add_event(b.get("session_id", ""), b.get("event", ""),
+                                                                  b.get("note", "")))
+                    if act == "end":
+                        return self._send(200, app.live.end(b.get("session_id", ""), b.get("note", "")))
                 if url.path == "/api/inspection":
                     return self._send(200, app.add_inspection(json.loads(text)))
                 if url.path == "/api/spares":
@@ -522,6 +601,10 @@ def _lan_ip():
 
 def serve(host="127.0.0.1", port=8000, data_dir="samples"):
     app = App(data_dir)
+    watcher = LogWatcher(app.live, app.meta.get("machines", []))
+    if watcher.targets:
+        watcher.start()
+        print(f"自動讀取機台 Log:{len(watcher.targets)} 台")
     print(f"本機開啟:http://127.0.0.1:{port}")
     if host == "0.0.0.0" and (ip := _lan_ip()):
         print(f"iPad / 手機(同一網路)開啟:http://{ip}:{port}")

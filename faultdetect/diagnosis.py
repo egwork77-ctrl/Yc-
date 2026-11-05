@@ -39,6 +39,7 @@ def diagnose(symptoms, kb=None, min_score=0.3):
                 "confidence": round(score, 2),
                 "matched": [s for s in weights if s in symptoms],
                 "steps": fault["steps"],
+                "improve": fault.get("improve", []),
             })
     return sorted(results, key=lambda r: -r["confidence"])
 

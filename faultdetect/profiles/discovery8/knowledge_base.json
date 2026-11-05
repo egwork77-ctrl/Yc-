@@ -1,43 +1,270 @@
 {
   "faults": [
-    {"id": "lamp_aging", "category": "Discovery 8 機台", "name": "照明燈管老化 / 亮度衰減",
-     "symptoms": {"lamp_intensity_low": 3, "lamp_intensity_falling": 2, "false_call_high": 2},
-     "steps": ["執行照明校正,記錄校正值與上次比較", "檢查燈管使用時數,接近壽命即更換", "檢查燈座、反光罩與光纖導光是否髒污", "更換後以校正片與標準板重新驗證"]},
-    {"id": "optics_dirty", "category": "Discovery 8 機台", "name": "鏡頭髒污 / 失焦",
-     "symptoms": {"focus_score_low": 3, "focus_score_falling": 2, "false_call_high": 1},
-     "steps": ["以無塵布 + 專用清潔液清潔掃描鏡頭與保護玻璃", "執行焦距 / 影像校正", "確認無塵室環境,檢查機台內落塵"]},
-    {"id": "vacuum_leak", "category": "Discovery 8 機台", "name": "平台真空不足(板翹、失焦)",
-     "symptoms": {"vacuum_kpa_low": 3, "vacuum_kpa_falling": 2, "focus_score_low": 1, "registration_score_low": 1},
-     "steps": ["清潔真空平台吸孔,檢查是否被銅屑 / 膠渣堵塞", "檢查真空管路、接頭與密封條是否漏氣", "檢查真空幫浦濾網與幫浦本體", "確認板材尺寸未超出吸附區(未蓋住的吸孔會洩壓)"]},
-    {"id": "air_supply", "category": "Discovery 8 機台", "name": "氣源壓力異常",
-     "symptoms": {"air_pressure_low": 3, "air_pressure_high": 2, "air_pressure_unstable": 3},
-     "steps": ["確認廠務空壓主管壓力", "空壓過濾器排水、檢查濾芯", "檢查調壓閥設定與壓力表", "檢查氣管有無漏氣"]},
-    {"id": "stage_wear", "category": "Discovery 8 機台", "name": "XY 平台定位誤差變大",
-     "symptoms": {"stage_error_um_high": 3, "stage_error_um_rising": 3, "registration_score_low": 1, "scan_time_unstable": 1},
-     "steps": ["清潔並潤滑 XY 導軌與滾珠螺桿", "檢查光學尺讀頭與尺身是否髒污", "檢查伺服馬達、聯軸器是否鬆動", "執行平台精度校正"]},
-    {"id": "registration_issue", "category": "Discovery 8 機台", "name": "對位(Registration)異常",
-     "symptoms": {"registration_score_low": 3, "registration_fail_high": 3},
-     "steps": ["檢查板上對位靶點 / 工具孔是否清晰", "重新教導對位點與搜尋範圍", "確認 CAM 資料版本與板子一致", "檢查板材漲縮是否超出補償範圍"]},
-    {"id": "thermal", "category": "Discovery 8 機台", "name": "光學室溫度異常",
-     "symptoms": {"temperature_high": 3, "temperature_rising": 2, "stage_error_um_high": 1},
-     "steps": ["確認無塵室空調溫度(建議 22±2°C)", "清潔機台散熱風扇與濾網", "溫度穩定後重新校正"]},
-    {"id": "program_too_strict", "category": "AOI 程式", "name": "檢測參數過嚴(誤判多)",
-     "symptoms": {"false_call_high": 3, "false_call_concentrated": 3},
-     "steps": ["從 VRS 複判資料找出誤判最多的區域 / 缺陷類型", "確認 CAM 參考資料與實際板一致", "適度調整該區線寬 / 間距容許值", "以已知不良板驗證不會漏判"]},
-    {"id": "artwork_defect", "category": "上游製程-影像轉移", "name": "底片 / LDI 圖形缺陷(固定位置重複)",
-     "symptoms": {"repeat_location": 3, "defect_open_high": 1, "defect_short_high": 1},
-     "steps": ["依重複座標檢查底片是否刮傷、沾塵", "LDI 製程則檢查該區曝光資料", "更換 / 清潔底片後追蹤下一批"]},
-    {"id": "exposure_dust", "category": "上游製程-影像轉移", "name": "曝光 / 乾膜異物",
-     "symptoms": {"defect_open_high": 3, "defect_nick_high": 2, "defect_pinhole_high": 2},
-     "steps": ["清潔曝光機玻璃框與無塵室落塵", "檢查乾膜壓膜品質(氣泡、皺折)", "檢查黏塵滾輪"]},
-    {"id": "under_etch", "category": "上游製程-蝕刻", "name": "顯影 / 蝕刻不足",
-     "symptoms": {"defect_short_high": 3, "defect_protrusion_high": 2, "defect_wide_high": 2, "defect_spacing_high": 2},
-     "steps": ["檢查顯影液濃度、溫度與噴壓", "檢查蝕刻液比重、溫度、輸送速度", "檢查噴嘴是否堵塞"]},
-    {"id": "over_etch", "category": "上游製程-蝕刻", "name": "過蝕刻",
-     "symptoms": {"defect_narrow_high": 3, "defect_nick_high": 2, "defect_open_high": 1},
-     "steps": ["降低蝕刻速度或提高輸送速度", "檢查蝕刻液濃度與溫度", "確認線寬補償值"]},
-    {"id": "copper_residue", "category": "上游製程-蝕刻", "name": "殘銅 / 銅渣",
-     "symptoms": {"defect_island_high": 3, "defect_short_high": 1},
-     "steps": ["檢查蝕刻是否均勻、上下噴壓", "檢查前處理(刷磨)銅屑殘留", "清潔輸送滾輪"]}
+    {
+      "id": "lamp_aging",
+      "category": "Discovery 8 機台",
+      "name": "照明燈管老化 / 亮度衰減",
+      "symptoms": {
+        "lamp_intensity_low": 3,
+        "lamp_intensity_falling": 2,
+        "false_call_high": 2
+      },
+      "steps": [
+        "執行照明校正,記錄校正值與上次比較",
+        "檢查燈管使用時數,接近壽命即更換",
+        "檢查燈座、反光罩與光纖導光是否髒污",
+        "更換後以校正片與標準板重新驗證"
+      ],
+      "improve": [
+        "建立照明校正值趨勢表,每次校正都登錄,衰減到 85% 就提前備料",
+        "依實際壽命調整燈管更換週期",
+        "備品至少保留 1 支"
+      ]
+    },
+    {
+      "id": "optics_dirty",
+      "category": "Discovery 8 機台",
+      "name": "鏡頭髒污 / 失焦",
+      "symptoms": {
+        "focus_score_low": 3,
+        "focus_score_falling": 2,
+        "false_call_high": 1
+      },
+      "steps": [
+        "以無塵布 + 專用清潔液清潔掃描鏡頭與保護玻璃",
+        "執行焦距 / 影像校正",
+        "確認無塵室環境,檢查機台內落塵"
+      ],
+      "improve": [
+        "清潔頻率由每週改為每班交接時目視檢查",
+        "改善機台周邊落塵(門簾、正壓、黏塵墊)",
+        "建立清潔前後影像清晰度比較紀錄"
+      ]
+    },
+    {
+      "id": "vacuum_leak",
+      "category": "Discovery 8 機台",
+      "name": "平台真空不足(板翹、失焦)",
+      "symptoms": {
+        "vacuum_kpa_low": 3,
+        "vacuum_kpa_falling": 2,
+        "focus_score_low": 1,
+        "registration_score_low": 1
+      },
+      "steps": [
+        "清潔真空平台吸孔,檢查是否被銅屑 / 膠渣堵塞",
+        "檢查真空管路、接頭與密封條是否漏氣",
+        "檢查真空幫浦濾網與幫浦本體",
+        "確認板材尺寸未超出吸附區(未蓋住的吸孔會洩壓)"
+      ],
+      "improve": [
+        "真空平台清潔納入每日點檢",
+        "記錄每日真空值,下降趨勢提前更換密封條或濾網",
+        "大小板混跑時使用遮蓋板封住未用吸孔"
+      ]
+    },
+    {
+      "id": "air_supply",
+      "category": "Discovery 8 機台",
+      "name": "氣源壓力異常",
+      "symptoms": {
+        "air_pressure_low": 3,
+        "air_pressure_high": 2,
+        "air_pressure_unstable": 3
+      },
+      "steps": [
+        "確認廠務空壓主管壓力",
+        "空壓過濾器排水、檢查濾芯",
+        "檢查調壓閥設定與壓力表",
+        "檢查氣管有無漏氣"
+      ],
+      "improve": [
+        "空壓過濾器排水改為每日",
+        "加裝壓力低警報或壓力記錄器",
+        "與廠務確認尖峰時段供氣能力"
+      ]
+    },
+    {
+      "id": "stage_wear",
+      "category": "Discovery 8 機台",
+      "name": "XY 平台定位誤差變大",
+      "symptoms": {
+        "stage_error_um_high": 3,
+        "stage_error_um_rising": 3,
+        "registration_score_low": 1,
+        "scan_time_unstable": 1
+      },
+      "steps": [
+        "清潔並潤滑 XY 導軌與滾珠螺桿",
+        "檢查光學尺讀頭與尺身是否髒污",
+        "檢查伺服馬達、聯軸器是否鬆動",
+        "執行平台精度校正"
+      ],
+      "improve": [
+        "導軌潤滑依運轉時數管理,不只看日期",
+        "每月執行平台精度量測並記錄趨勢",
+        "定位誤差上升時提前安排原廠校正"
+      ]
+    },
+    {
+      "id": "registration_issue",
+      "category": "Discovery 8 機台",
+      "name": "對位(Registration)異常",
+      "symptoms": {
+        "registration_score_low": 3,
+        "registration_fail_high": 3
+      },
+      "steps": [
+        "檢查板上對位靶點 / 工具孔是否清晰",
+        "重新教導對位點與搜尋範圍",
+        "確認 CAM 資料版本與板子一致",
+        "檢查板材漲縮是否超出補償範圍"
+      ],
+      "improve": [
+        "與前製程確認靶點品質標準",
+        "建立料號別對位參數範本",
+        "追蹤板材漲縮數據,超出時回饋壓合 / 曝光"
+      ]
+    },
+    {
+      "id": "thermal",
+      "category": "Discovery 8 機台",
+      "name": "光學室溫度異常",
+      "symptoms": {
+        "temperature_high": 3,
+        "temperature_rising": 2,
+        "stage_error_um_high": 1
+      },
+      "steps": [
+        "確認無塵室空調溫度(建議 22±2°C)",
+        "清潔機台散熱風扇與濾網",
+        "溫度穩定後重新校正"
+      ],
+      "improve": [
+        "光學室溫度納入每日點檢",
+        "空調異常時建立停機 / 降速規範",
+        "機台散熱濾網清潔週期縮短"
+      ]
+    },
+    {
+      "id": "program_too_strict",
+      "category": "AOI 程式",
+      "name": "檢測參數過嚴(誤判多)",
+      "symptoms": {
+        "false_call_high": 3,
+        "false_call_concentrated": 3
+      },
+      "steps": [
+        "從 VRS 複判資料找出誤判最多的區域 / 缺陷類型",
+        "確認 CAM 參考資料與實際板一致",
+        "適度調整該區線寬 / 間距容許值",
+        "以已知不良板驗證不會漏判"
+      ],
+      "improve": [
+        "建立料號別誤判率排行,每週檢討前 3 名",
+        "參數調整走變更管理,並以已知不良板驗證",
+        "VRS 複判結果回饋給程式人員"
+      ]
+    },
+    {
+      "id": "artwork_defect",
+      "category": "上游製程-影像轉移",
+      "name": "底片 / LDI 圖形缺陷(固定位置重複)",
+      "symptoms": {
+        "repeat_location": 3,
+        "defect_open_high": 1,
+        "defect_short_high": 1
+      },
+      "steps": [
+        "依重複座標檢查底片是否刮傷、沾塵",
+        "LDI 製程則檢查該區曝光資料",
+        "更換 / 清潔底片後追蹤下一批"
+      ],
+      "improve": [
+        "底片使用次數管理,到次數強制檢查",
+        "AOI 偵測到同座標重複缺陷時自動通知影像轉移站",
+        "LDI 定期做圖形驗證"
+      ]
+    },
+    {
+      "id": "exposure_dust",
+      "category": "上游製程-影像轉移",
+      "name": "曝光 / 乾膜異物",
+      "symptoms": {
+        "defect_open_high": 3,
+        "defect_nick_high": 2,
+        "defect_pinhole_high": 2
+      },
+      "steps": [
+        "清潔曝光機玻璃框與無塵室落塵",
+        "檢查乾膜壓膜品質(氣泡、皺折)",
+        "檢查黏塵滾輪"
+      ],
+      "improve": [
+        "曝光區落塵量定期量測",
+        "乾膜與黏塵滾輪更換週期管理",
+        "缺陷照片分類回饋給曝光站"
+      ]
+    },
+    {
+      "id": "under_etch",
+      "category": "上游製程-蝕刻",
+      "name": "顯影 / 蝕刻不足",
+      "symptoms": {
+        "defect_short_high": 3,
+        "defect_protrusion_high": 2,
+        "defect_wide_high": 2,
+        "defect_spacing_high": 2
+      },
+      "steps": [
+        "檢查顯影液濃度、溫度與噴壓",
+        "檢查蝕刻液比重、溫度、輸送速度",
+        "檢查噴嘴是否堵塞"
+      ],
+      "improve": [
+        "蝕刻液濃度 / 比重自動記錄並設上下限",
+        "噴嘴堵塞定期檢查表",
+        "以線寬量測數據做 SPC"
+      ]
+    },
+    {
+      "id": "over_etch",
+      "category": "上游製程-蝕刻",
+      "name": "過蝕刻",
+      "symptoms": {
+        "defect_narrow_high": 3,
+        "defect_nick_high": 2,
+        "defect_open_high": 1
+      },
+      "steps": [
+        "降低蝕刻速度或提高輸送速度",
+        "檢查蝕刻液濃度與溫度",
+        "確認線寬補償值"
+      ],
+      "improve": [
+        "蝕刻速度與線寬量測做 SPC",
+        "換料號時確認線寬補償參數",
+        "首件線寬量測"
+      ]
+    },
+    {
+      "id": "copper_residue",
+      "category": "上游製程-蝕刻",
+      "name": "殘銅 / 銅渣",
+      "symptoms": {
+        "defect_island_high": 3,
+        "defect_short_high": 1
+      },
+      "steps": [
+        "檢查蝕刻是否均勻、上下噴壓",
+        "檢查前處理(刷磨)銅屑殘留",
+        "清潔輸送滾輪"
+      ],
+      "improve": [
+        "前處理刷磨與水洗定期保養",
+        "輸送滾輪清潔週期管理",
+        "殘銅位置分布回饋蝕刻站"
+      ]
+    }
   ]
 }

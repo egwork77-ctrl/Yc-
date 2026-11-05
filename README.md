@@ -35,7 +35,12 @@ python -m faultdetect serve --host 0.0.0.0 --data samples
      `python tools/log_probe.py "\\機台電腦\分享資料夾" --days 60 --out probe_DIS8-1`
    - 舊版 Windows、沒有網路分享時：把 `tools/list_files.bat` 放進 USB，在機台電腦上點兩下執行
    - 執行前請先確認公司 IT／設備課的規定，以及原廠保固條款
-3. 把報告傳給開發者，就能寫出自動擷取程式，做到真正的即時監測。
+3. 找到 Log 後，在 `machines.json` 的機台加入 `live_log`（路徑＋正規表示式對應事件），監看時就會自動記錄（🤖 標示）：
+   ```json
+   "live_log": {"path": "\\\\AOI-PC\\Logs\\event.log",
+                "patterns": [{"regex": "Registration failed", "event": "registration_fail"}]}
+   ```
+4. 把報告傳給開發者，就能寫出自動擷取程式，做到真正的即時監測。
 
 ## 預知保養（主要功能）
 
