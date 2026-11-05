@@ -19,6 +19,34 @@ REPAIR_FIELDS = ["time", "machine_id", "fault_id", "fault_name", "result", "solv
                  "steps_done", "technician", "note"]
 _lock = threading.Lock()
 
+
+def append_csv(path, row):
+    """附加一列;檔案沒有的欄位會自動加到表頭(重寫檔案)。"""
+    path = Path(path)
+    with _lock:
+        header = []
+        if path.exists():
+            with open(path, encoding="utf-8-sig", newline="") as f:
+                header = next(csv.reader(f), [])
+        missing = [k for k in row if k not in header]
+        if header and not missing:
+            with open(path, "a", encoding="utf-8", newline="") as f:
+                csv.DictWriter(f, fieldnames=header, extrasaction="ignore").writerow(row)
+            return
+        rows = detector.read_rows(path) if path.exists() else []
+        header += missing
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=header, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(rows + [row])
+
+
+def _float(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
 PAGE = r"""<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -35,6 +63,8 @@ header{padding:14px 16px;font-size:20px;font-weight:700}main{padding:0 16px 96px
 .bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%}
 button,.btn{font-size:18px;padding:14px 18px;border-radius:12px;border:0;background:var(--blue);color:#fff;min-height:52px;cursor:pointer}
 button.ok{background:var(--green)}button.no{background:var(--amber)}button.ghost{background:var(--line);color:var(--fg)}button.danger{background:var(--red)}
+.num{display:flex;align-items:center;gap:8px;margin:8px 0}.num label{flex:2}.num input{flex:1;max-width:160px;font-size:20px}
+.stepper{display:flex;align-items:center;gap:8px}.stepper button{min-width:52px;padding:10px}.stepper b{min-width:36px;text-align:center;font-size:20px}
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>button{flex:1;min-width:150px}
 .step{font-size:24px;line-height:1.5;padding:24px 4px}
 textarea,input,select{width:100%;font-size:17px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
@@ -44,7 +74,7 @@ nav a{flex:1;text-align:center;padding:12px 0;color:var(--muted);text-decoration
 ul{padding-left:20px}li{margin:4px 0}table{border-collapse:collapse;width:100%}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left;font-size:15px}
 </style></head><body>
 <header id="title">AOI 現場排除</header><main id="view"></main>
-<nav><a href="#" data-v="overview">📊 總覽</a><a href="#" data-v="parts">📦 備料</a><a href="#" data-v="pick">🔧 排除故障</a><a href="#" data-v="records">📝 紀錄</a><a href="#" data-v="upload">📤 上傳分析</a></nav>
+<nav><a href="#" data-v="overview">📊 總覽</a><a href="#" data-v="inspect">📋 點檢</a><a href="#" data-v="parts">📦 備料</a><a href="#" data-v="pick">🔧 排除故障</a><a href="#" data-v="records">📝 紀錄</a><a href="#" data-v="upload">📤 上傳分析</a></nav>
 <script>
 const $=s=>document.querySelector(s), V=$('#view');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -65,7 +95,7 @@ async function api(p,o){const r=await fetch(p,o);const j=await r.json();if(!r.ok
 function nav(v){document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v));}
 document.querySelectorAll('nav a').forEach(a=>a.onclick=e=>{e.preventDefault();go(a.dataset.v);});
 function go(v,...a){cur=v;nav(v==='machine'?'overview':['faults','step','end'].includes(v)?'pick':v);window.scrollTo(0,0);
- ({overview,machine,parts,pick,faults,step,end,records,upload})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
+ ({overview,machine,inspect,parts,pick,faults,step,end,records,upload})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
 async function load(){S.ov=await api('/api/overview');autoRefresh(S.ov.refresh||60);return S.ov;}
 
 async function overview(){V.innerHTML='<p class="muted">載入中…</p>';const ov=await load();
@@ -86,6 +116,26 @@ async function machine(id){const ov=S.ov||await load();const m=ov.machines.find(
  <h3>感測趨勢</h3><table><tr><th>項目</th><th>現值</th><th>趨勢</th><th>健康</th><th>預計超標</th></tr>${m.predictions.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.current}</td>
  <td>${p.r2>=0.5?(p.slope_per_day>0?'+':'')+p.slope_per_day+'/天':'穩定'}</td><td>${p.health}</td><td>${dd(p.due_days)}</td></tr>`).join('')}</table></div>`;}
 
+const msel=(ov,id)=>`<select id="msel">${ov.machines.map(m=>`<option value="${esc(m.machine_id)}">${esc(m.name)}(${esc(m.machine_id)})</option>`).join('')}</select>`;
+let lastM=null;
+async function inspect(){const ov=S.ov||await load();
+ V.innerHTML=`<div class="card"><h2>每日點檢</h2><p class="muted">把機台畫面 / 儀表上看到的數值填進來,留空的項目不記錄。數據累積後就能預測。</p>
+ ${msel(ov)}<div id="form"></div></div><div id="res"></div>`;
+ const sel=$('#msel');if(lastM)sel.value=lastM;sel.onchange=()=>{lastM=sel.value;loadForm();};loadForm();}
+async function loadForm(){const f=await api('/api/form?machine_id='+encodeURIComponent($('#msel').value));
+ const hint=x=>x.counter?'累計':[x.min!=null?'≥ '+x.min:'',x.max!=null?'≤ '+x.max:''].filter(Boolean).join(' ');
+ $('#form').innerHTML=`<p class="muted">上次點檢:${esc(f.last_time||'無')}</p>`+f.fields.map(x=>`<div class="num"><label>${esc(x.name)}
+ <div class="muted">${esc(hint(x))}${x.last!==''?' · 上次 '+esc(x.last):''}</div></label>
+ <input type="number" step="any" inputmode="decimal" data-k="${esc(x.key)}"></div>`).join('')+
+ `<input id="itech" placeholder="點檢人員" style="margin:8px 0"><button onclick="sendInspect()" style="width:100%">💾 儲存點檢</button>`;
+ try{$('#itech').value=localStorage.getItem('tech')||'';}catch(e){}}
+async function sendInspect(){const values={};document.querySelectorAll('#form input[data-k]').forEach(i=>{if(i.value!=='')values[i.dataset.k]=i.value;});
+ try{const r=await api('/api/inspection',{method:'POST',body:JSON.stringify({machine_id:$('#msel').value,values})});S.ov=null;
+ $('#res').innerHTML=`<div class="card ${r.warnings.length?'alarm':''}"><h2>${r.warnings.length?'⚠️ 已儲存,但有異常':'✅ 已儲存,數值正常'}</h2>
+ <ul>${r.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>${r.warnings.length?`<button onclick="go('faults','${esc($('#msel').value)}')">🔧 開始排除故障</button>`:''}</div>`;
+ document.querySelectorAll('#form input[data-k]').forEach(i=>i.value='');window.scrollTo(0,document.body.scrollHeight);}
+ catch(e){$('#res').innerHTML=`<div class="card alarm">${esc(e.message)}</div>`;}}
+
 async function parts(){const ov=S.ov||await load();
  const all=ov.machines.flatMap(m=>m.parts.map(p=>({...p,mname:m.name}))).filter(p=>p.due_days!=null)
   .sort((a,b)=>({order_now:0,order_soon:1,stocked:2,ok:3}[a.status]-{order_now:0,order_soon:1,stocked:2,ok:3}[b.status])||a.due_days-b.due_days);
@@ -93,7 +143,15 @@ async function parts(){const ov=S.ov||await load();
  V.innerHTML=`<h2>備料清單</h2><p class="muted">依預測更換日 − 交期 − 安全天數 計算最晚下單日 · 最後更新 ${esc(ov.updated.slice(11))}</p>
  <div class="grid"><div class="card alarm"><h2>${n('order_now')}</h2>🛒 立即備料</div><div class="card warn"><h2>${n('order_soon')}</h2>📋 14 天內需下單</div>
  <div class="card info"><h2>${n('stocked')}</h2>📦 已有庫存</div></div>
- <div class="card" style="overflow-x:auto"><table><tr><th>狀態</th><th>機台</th>${PH.slice(PH.indexOf('<th>零件'))}</tr>${all.map(p=>partRow(p,p.mname)).join('')}</table></div>`;}
+ <div class="card" style="overflow-x:auto"><table><tr><th>狀態</th><th>機台</th>${PH.slice(PH.indexOf('<th>零件'))}</tr>${all.map(p=>partRow(p,p.mname)).join('')}</table></div>
+ <div class="card"><h2>備品庫存</h2><p class="muted">取代人工記錄:入庫按 +,領用按 −。料號、交期可直接修改。</p><div id="stock"></div></div>`;stock();}
+async function stock(){const sp=await api('/api/spares');
+ $('#stock').innerHTML='<div style="overflow-x:auto"><table><tr><th>零件</th><th>庫存</th><th>交期(天)</th><th>料號</th></tr>'+sp.map(p=>`<tr><td><b>${esc(p.name)}</b></td>
+ <td><div class="stepper"><button class="ghost" onclick="spare('${p.part_id}',{delta:-1})">−</button><b>${p.stock}</b><button class="ghost" onclick="spare('${p.part_id}',{delta:1})">+</button></div></td>
+ <td><input type="number" inputmode="numeric" value="${p.lead_days}" style="max-width:90px" onchange="spare('${p.part_id}',{lead_days:this.value})"></td>
+ <td><input value="${esc(p.part_no)}" onchange="spare('${p.part_id}',{part_no:this.value})"></td></tr>`).join('')+'</table></div>';}
+async function spare(id,body){await api('/api/spares',{method:'POST',body:JSON.stringify({part_id:id,...body})});S.ov=null;
+ if('delta' in body||'lead_days' in body){await parts();}}
 
 async function pick(){const ov=S.ov||await load();
  V.innerHTML='<h2>選擇機台</h2><div class="grid">'+ov.machines.map(m=>`<div class="card tap ${m.level}" onclick="go('faults','${esc(m.machine_id)}')">
@@ -132,10 +190,22 @@ async function save(solved){const tech=$('#tech').value;try{localStorage.setItem
  result:solved?'已解決':'未解決',solved_step:solved?S.i+1:'',steps_done:S.i+1,technician:tech,note:$('#note').value})});
  V.innerHTML=`<div class="card"><h2>已儲存紀錄 👍</h2><div class="row"><button onclick="go('overview')">回總覽</button><button class="ghost" onclick="go('records')">看紀錄</button></div></div>`;}
 
-async function records(){const rs=await api('/api/repairs');
- V.innerHTML='<h2>維修紀錄</h2>'+(rs.length?'<div class="card"><table><tr><th>時間</th><th>機台</th><th>問題</th><th>結果</th><th>人員</th><th>備註</th></tr>'+
+async function records(){const rs=await api('/api/repairs');const ov=S.ov||await load();
+ V.innerHTML=`<div class="card"><h2>登錄保養 / 更換零件</h2><p class="muted">做完保養請登錄,系統才會從今天重新計算壽命與下次到期。</p>
+ ${msel(ov)}<br><br><select id="mitem"></select><br><br><select id="mpart"></select><br><br>
+ <input id="mtech" placeholder="處理人員"><br><br><textarea id="mnote" placeholder="備註"></textarea><br><br>
+ <button onclick="sendMaint()" style="width:100%">💾 登錄保養</button><div id="mres"></div></div>`+'<h2>維修紀錄</h2>'+(rs.length?'<div class="card"><table><tr><th>時間</th><th>機台</th><th>問題</th><th>結果</th><th>人員</th><th>備註</th></tr>'+
  rs.map(r=>`<tr><td>${esc(r.time)}</td><td>${esc(r.machine_id)}</td><td>${esc(r.fault_name)}</td><td>${r.result==='已解決'?'✅':'❌'} ${esc(r.result)}${r.solved_step?'(步驟 '+esc(r.solved_step)+')':''}</td>
- <td>${esc(r.technician)}</td><td>${esc(r.note)}</td></tr>`).join('')+'</table></div>':'<p class="muted">尚無紀錄</p>');}
+ <td>${esc(r.technician)}</td><td>${esc(r.note)}</td></tr>`).join('')+'</table></div>':'<p class="muted">尚無紀錄</p>');
+ const sel=$('#msel');if(lastM)sel.value=lastM;sel.onchange=()=>{lastM=sel.value;maintForm();};maintForm();
+ try{$('#mtech').value=localStorage.getItem('tech')||'';}catch(e){}}
+async function maintForm(){const f=await api('/api/form?machine_id='+encodeURIComponent($('#msel').value));
+ $('#mitem').innerHTML=f.maintenance.map(x=>`<option>${esc(x)}</option>`).join('');
+ $('#mpart').innerHTML='<option value="">不使用庫存零件</option>'+f.parts.map(p=>`<option value="${esc(p.id)}">領用:${esc(p.name)}</option>`).join('');}
+async function sendMaint(){try{const r=await api('/api/maintenance',{method:'POST',body:JSON.stringify({machine_id:$('#msel').value,
+ item:$('#mitem').value,part_id:$('#mpart').value,technician:$('#mtech').value,note:$('#mnote').value})});S.ov=null;
+ await records();$('#mres').innerHTML=`<p>✅ 已登錄 ${esc(r.saved.item)}${r.spare?`,${esc(r.spare.name)} 庫存剩 ${r.spare.stock}`:''}</p>`;}
+ catch(e){$('#mres').innerHTML=`<p style="color:var(--red)">${esc(e.message)}</p>`;}}
 
 async function upload(){V.innerHTML=`<div class="card"><h2>上傳資料分析</h2><p class="muted">從機台匯出的 CSV(歷史感測資料 → 預知保養;檢測結果 → 故障診斷)</p>
  <select id="prof"><option value="discovery8">Orbotech Discovery 8</option><option value="fusion22">KLA Fusion 22</option><option value="aoi">SMT AOI</option><option value="generic">一般機台</option></select><br><br>
@@ -189,6 +259,126 @@ class App:
                 "updated": datetime.now().isoformat(timespec="seconds"),
                 "refresh": self.meta.get("refresh_seconds", 60),
                 "contacts": self.meta.get("contacts", [])}
+
+    # ---- 機台 / 資料來源 ----
+    def machine(self, mid):
+        m = next((x for x in self.meta.get("machines", []) if x["id"] == mid), None)
+        if not m:
+            raise ValueError(f"未登錄的機台 {mid}")
+        src = next((x for x in self.meta.get("sources", []) if x["profile"] == m["profile"]), None)
+        if not src:
+            raise ValueError(f"機型 {m['profile']} 沒有設定資料來源")
+        return m, self.dir / src["history"], self.dir / src["log"]
+
+    def _latest(self, hist, mid):
+        rows = [r for r in detector.read_rows(hist) if r.get("machine_id") == mid] if hist.exists() else []
+        return rows[-1] if rows else {}
+
+    @staticmethod
+    def _counters(cfg):
+        return sorted({m["counter"] for m in cfg.get("maintenance", []) if "counter" in m})
+
+    def form(self, mid):
+        """點檢 / 保養表單需要的欄位、門檻與上次數值。"""
+        m, hist, _ = self.machine(mid)
+        cfg = detector.load_config(profile=m["profile"])
+        last = self._latest(hist, mid)
+        fields = [{"key": k, "name": r.get("name", k), "last": last.get(k, ""),
+                   "min": r.get("min_warn"), "max": r.get("max_warn")} for k, r in cfg["sensors"].items()]
+        fields += [{"key": c, "name": {"run_hours": "運轉時數(累計)", "lamp_hours": "燈管時數(累計)",
+                                       "light_hours": "光源時數(累計)"}.get(c, c), "last": last.get(c, ""),
+                    "min": None, "max": None, "counter": True} for c in self._counters(cfg)]
+        return {"machine": m, "fields": fields, "last_time": last.get("timestamp"),
+                "maintenance": [x["item"] for x in cfg.get("maintenance", [])],
+                "parts": [{"id": p["id"], "name": p["name"]} for p in cfg.get("parts", [])]}
+
+    def add_inspection(self, body):
+        mid = body.get("machine_id", "")
+        m, hist, _ = self.machine(mid)
+        cfg = detector.load_config(profile=m["profile"])
+        allowed = set(cfg["sensors"]) | set(self._counters(cfg))
+        vals = {k: _float(v) for k, v in (body.get("values") or {}).items() if k in allowed}
+        vals = {k: v for k, v in vals.items() if v is not None}
+        if not vals:
+            raise ValueError("沒有輸入任何數值")
+        row = {"timestamp": datetime.now().isoformat(timespec="minutes"), "machine_id": mid, **vals}
+        append_csv(hist, row)
+        warnings = []
+        for k, v in vals.items():
+            r = cfg["sensors"].get(k)
+            if not r:
+                continue
+            for key, op, word in (("max_alarm", v.__gt__, "🔴 超過警報值"), ("max_warn", v.__gt__, "🟡 超過警告值"),
+                                  ("min_alarm", v.__lt__, "🔴 低於警報值"), ("min_warn", v.__lt__, "🟡 低於警告值")):
+                if r.get(key) is not None and op(r[key]):
+                    warnings.append(f"{r.get('name', k)} = {v:g} {word} {r[key]:g}")
+                    break
+        return {"saved": row, "warnings": warnings}
+
+    # ---- 備品庫存 ----
+    @property
+    def spares_file(self):
+        return self.dir / self.meta.get("spares", "spares.csv")
+
+    def spares(self):
+        rows = {(r.get("machine_id") or "*", r.get("part_id")): r
+                for r in (detector.read_rows(self.spares_file) if self.spares_file.exists() else [])}
+        parts = {}
+        for src in self.meta.get("sources", []):
+            for p in detector.load_config(profile=src["profile"]).get("parts", []):
+                e = parts.setdefault(p["id"], {"part_id": p["id"], "name": p["name"], "models": [],
+                                               "lead_days": p.get("lead_days", 14)})
+                e["models"].append(src["profile"])
+        out = []
+        for pid, e in parts.items():
+            r = rows.get(("*", pid), {})
+            out.append({**e, "part_no": r.get("part_no", ""), "stock": int(_float(r.get("stock")) or 0),
+                        "lead_days": int(_float(r.get("lead_days")) or e["lead_days"])})
+        return out
+
+    def update_spare(self, body):
+        pid = body.get("part_id")
+        cur = {x["part_id"]: x for x in self.spares()}
+        if pid not in cur:
+            raise ValueError(f"未知零件 {pid}")
+        e = cur[pid]
+        if "delta" in body:
+            e["stock"] = max(0, e["stock"] + int(body["delta"]))
+        for k in ("stock", "lead_days"):
+            if k in body and k != "delta" and _float(body[k]) is not None:
+                e[k] = max(0, int(_float(body[k])))
+        if "part_no" in body:
+            e["part_no"] = str(body["part_no"])[:100]
+        with _lock:
+            rows = detector.read_rows(self.spares_file) if self.spares_file.exists() else []
+            rows = [r for r in rows if not ((r.get("machine_id") or "*") == "*" and r.get("part_id") == pid)]
+            rows.append({"machine_id": "*", "part_id": pid, "part_no": e["part_no"],
+                         "stock": e["stock"], "lead_days": e["lead_days"]})
+            with open(self.spares_file, "w", encoding="utf-8", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=["machine_id", "part_id", "part_no", "stock", "lead_days"],
+                                   extrasaction="ignore")
+                w.writeheader()
+                w.writerows(rows)
+        return e
+
+    # ---- 保養登錄 ----
+    def add_maintenance(self, body):
+        mid, item = body.get("machine_id", ""), body.get("item", "")
+        m, hist, log = self.machine(mid)
+        cfg = detector.load_config(profile=m["profile"])
+        if item not in [x["item"] for x in cfg.get("maintenance", [])]:
+            raise ValueError(f"未知保養項目 {item}")
+        last = self._latest(hist, mid)
+        row = {"date": datetime.now().date().isoformat(), "machine_id": mid, "item": item,
+               **{c: last[c] for c in self._counters(cfg) if last.get(c)}}
+        append_csv(log, row)
+        used = None
+        if body.get("part_id"):
+            used = self.update_spare({"part_id": body["part_id"], "delta": -1})
+        self.add_repair({"machine_id": mid, "fault_id": "maintenance", "fault_name": f"保養:{item}",
+                         "result": "保養完成", "technician": body.get("technician", ""),
+                         "note": (body.get("note", "") + (f"(領用 {used['name']},剩 {used['stock']})" if used else ""))})
+        return {"saved": row, "spare": used}
 
     @property
     def repair_file(self):
@@ -245,6 +435,10 @@ def make_handler(app):
                     return self._send(200, diagnosis.load_kb(profile=prof))
                 if url.path == "/api/repairs":
                     return self._send(200, app.repairs())
+                if url.path == "/api/form":
+                    return self._send(200, app.form(q.get("machine_id", [""])[0]))
+                if url.path == "/api/spares":
+                    return self._send(200, app.spares())
                 self._send(404, {"error": "not found"})
             except Exception as e:  # noqa: BLE001
                 self._err(e)
@@ -258,6 +452,12 @@ def make_handler(app):
             try:
                 if url.path == "/api/repairs":
                     return self._send(200, app.add_repair(json.loads(text)))
+                if url.path == "/api/inspection":
+                    return self._send(200, app.add_inspection(json.loads(text)))
+                if url.path == "/api/spares":
+                    return self._send(200, app.update_spare(json.loads(text)))
+                if url.path == "/api/maintenance":
+                    return self._send(200, app.add_maintenance(json.loads(text)))
                 if url.path == "/api/predict":
                     body = json.loads(text)
                     prof = body.get("profile", "discovery8")
