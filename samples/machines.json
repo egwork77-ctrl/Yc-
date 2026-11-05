@@ -10,6 +10,11 @@
       "profile": "fusion22",
       "history": "f22_history.csv",
       "log": "f22_maintenance_log.csv"
+    },
+    {
+      "profile": "vrs",
+      "history": "vrs_history.csv",
+      "log": "vrs_maintenance_log.csv"
     }
   ],
   "machines": [
@@ -42,6 +47,42 @@
       "name": "Fusion 22 #2",
       "model": "KLA Fusion 22",
       "profile": "fusion22"
+    },
+    {
+      "id": "VRS-1",
+      "name": "VRS #1",
+      "model": "Orbotech VRS",
+      "profile": "vrs"
+    },
+    {
+      "id": "VRS-2",
+      "name": "VRS #2",
+      "model": "Orbotech VRS",
+      "profile": "vrs"
+    },
+    {
+      "id": "VRS-3",
+      "name": "VRS #3",
+      "model": "Orbotech VRS",
+      "profile": "vrs"
+    },
+    {
+      "id": "VRS-4",
+      "name": "VRS #4",
+      "model": "Orbotech VRS",
+      "profile": "vrs"
+    },
+    {
+      "id": "VRS-5",
+      "name": "VRS #5",
+      "model": "Orbotech VRS",
+      "profile": "vrs"
+    },
+    {
+      "id": "VRS-6",
+      "name": "VRS #6",
+      "model": "Orbotech VRS",
+      "profile": "vrs"
     }
   ],
   "contacts": [

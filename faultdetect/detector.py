@@ -6,7 +6,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 PROFILES_DIR = Path(__file__).with_name("profiles")
-PROFILES = ("discovery8", "fusion22", "aoi", "generic")
+PROFILES = ("discovery8", "fusion22", "vrs", "aoi", "generic")
 LEVEL_RANK = {"info": 0, "warn": 1, "alarm": 2}
 
 

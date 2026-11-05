@@ -248,6 +248,47 @@ def write_f22_log(path):
             w.writerow(("2025-06-01", mid, "照明光源模組檢查 / 更換(依原廠壽命)", "0"))
 
 
-SAMPLES = {"f22-history": write_f22_history, "f22-log": write_f22_log,
+VRS = tuple(f"VRS-{i}" for i in range(1, 7))
+VRS_FIELDS = ["timestamp", "machine_id", "focus_score", "light_intensity", "vacuum_kpa", "gantry_error_um",
+              "move_time_ms", "run_hours", "light_hours"]
+
+
+def write_vrs_history(path, days=30, seed=66):
+    """6 台 VRS:VRS-2 照明衰減、VRS-5 橋架定位誤差上升,其餘正常。"""
+    rnd = random.Random(seed)
+    start = datetime(2026, 1, 1, 0, 0)
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=VRS_FIELDS)
+        w.writeheader()
+        for n, mid in enumerate(VRS):
+            for i in range(days * 4):
+                d = i / 4
+                v = dict(focus_score=90 + rnd.gauss(0, 0.6), light_intensity=97 + rnd.gauss(0, 0.4),
+                         vacuum_kpa=70 + rnd.gauss(0, 0.6), gantry_error_um=8 + rnd.gauss(0, 0.6),
+                         move_time_ms=380 + rnd.gauss(0, 12))
+                if mid == "VRS-2":
+                    v["light_intensity"] -= d * 0.33
+                elif mid == "VRS-5":
+                    v["gantry_error_um"] += d * 0.4
+                    v["move_time_ms"] += d * 5
+                v["run_hours"] = 6000 + n * 1500 + d * 18
+                v["light_hours"] = 3000 + n * 1200 + d * 18
+                w.writerow({"timestamp": (start + timedelta(hours=6 * i)).isoformat(timespec="minutes"),
+                            "machine_id": mid, **{k: round(x, 3) for k, x in v.items()}})
+
+
+def write_vrs_log(path):
+    items = [("鏡頭 / 保護玻璃清潔", "2026-01-28"), ("吸附平台清潔", "2026-01-27"),
+             ("照明與相機校正(校正片)", "2026-01-20"), ("鍵盤 / 軌跡球清潔檢查", "2026-01-10"),
+             ("橋架導軌清潔潤滑", "2025-12-20")]
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["date", "machine_id", "item", "light_hours"])
+        for mid in VRS:
+            w.writerows([(d, mid, it, "") for it, d in items])
+            w.writerow(("2025-03-01", mid, "照明光源更換(依原廠壽命)", "0"))
+
+
+SAMPLES = {"vrs-history": write_vrs_history, "vrs-log": write_vrs_log, "f22-history": write_f22_history, "f22-log": write_f22_log,
            "d8-history": write_d8_history, "d8-log": write_d8_log, "d8-results": write_d8_results,
            "aoi-history": write_aoi_history, "maintenance-log": write_maintenance_log, "generic": write_sample, "aoi": write_aoi_sensors, "aoi-results": write_aoi_results}

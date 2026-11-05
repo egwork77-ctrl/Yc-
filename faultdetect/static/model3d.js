@@ -1,6 +1,6 @@
 /* AOI 機台 3D 機構模型(外型依現場照片估計,內部機構為示意,尺寸單位:公尺,非原廠圖面)。
  *
- * AOI3D.mount(容器, {model:'fusion22'|'discovery', parts:[...], onPick:fn})
+ * AOI3D.mount(容器, {model:'fusion22'|'discovery'|'vrs', parts:[...], onPick:fn})
  *   回傳 {setMode('xray'|'solid'|'mech'|'mesh'), toggleAnim(), reset(), select(id), dispose()}
  *
  * 機構以工程分析配色:床台藍、立柱橘、橫樑紫、工作台黃、線軌紅、滾珠螺桿黃、伺服馬達黑。
@@ -124,7 +124,11 @@
     // 底座內:真空幫浦、空壓濾芯
     b.m('vacuum_pump', box(0.38, 0.3, 0.3, mat(0x475569)), hx - 0.35, 0.22, cz - 0.3);
     b.m('air_filter', cyl(0.055, 0.26, mat(0x94a3b8, { metal: 0.4 })), -hx + 0.2, 0.42, cz - depth / 2 - 0.02);
-    return { xg, yg, hx, depth };
+    const y0 = yg.position.z;
+    return { animate: t => {                                   // X 軸來回掃描,Y 平台逐步前後移動
+      xg.position.x = (hx - 0.25) * Math.sin(t * 1.8);
+      yg.position.z = y0 + (depth / 2 - 0.45) * Math.sin(t * 0.35);
+    } };
   }
 
   // ---------- KLA (Orbotech) Fusion 22 ----------
@@ -168,7 +172,52 @@
     return { ...k, target: [0, 0.95, 0.1], cam: [2.4, 1.9, 2.8] };
   }
 
-  const MODELS = { fusion22, discovery };
+  // ---------- Orbotech VRS 缺陷複判站:藍色機身 + 傾斜工作台 + 拱型橋架相機 ----------
+  function vrs(b) {
+    const blue = 0x2f6fb8, W = 1.5;
+    b.shell(box(W, 0.72, 1.0, mat(blue, { shell: true })), 0, 0.36, -0.05);                 // 底座
+    b.shell(box(W, 0.06, 0.3, mat(blue, { shell: true })), 0, 0.84, 0.55);                   // 前方扶手台
+    b.add(box(0.26, 0.03, 0.17, mat(0xe5e7eb)), 0.45, 0.885, 0.55);                         // 專用鍵盤
+    for (let i = 0; i < 12; i++) b.add(box(0.035, 0.012, 0.03, mat(0x94a3b8)), 0.365 + (i % 4) * 0.055, 0.905, 0.5 + Math.floor(i / 4) * 0.045);
+    b.monitor(-0.95, 1.2, 0.3);
+    b.signalTower(-0.65, 1.55, -0.55);
+    // 傾斜工作台(靠操作員端較低)
+    const tilt = 0.44, tg = b.add(new T.Group(), 0, 1.02, -0.02);
+    tg.rotation.x = tilt;
+    const frame = box(W, 0.06, 1.05, mat(blue, { shell: true })); tg.add(at(frame, 0, -0.06, 0)); b.shells.push(frame);
+    b.m('vacuum_pump', box(1.25, 0.03, 0.9, mat(0x111827, { rough: 0.3 })), 0, -0.015, 0, tg);       // 黑色真空吸附台
+    b.add(box(0.9, 0.006, 0.62, mat(0xd9b48a)), 0, 0.003, 0.02, tg);                                // 待複判的板子
+    for (const x of [-0.69, 0.69]) b.m('vrs_gantry', box(0.035, 0.03, 1.0, mat(C.rail)), x, 0.0, 0, tg);
+    b.m('vrs_gantry', servo(mat(C.motor)), 0.69, 0.02, -0.58, tg).rotation.y = Math.PI;
+    // 拱型橋架(沿台面上下移動)+ 相機座(沿橋架左右移動)
+    const bg = b.add(new T.Group(), 0, 0, 0, tg);
+    for (const x of [-0.69, 0.69]) b.m('vrs_gantry', box(0.08, 0.2, 0.12, mat(0x5b84c4)), x, 0.11, 0, bg);
+    b.m('vrs_gantry', box(1.46, 0.08, 0.14, mat(0x5b84c4)), 0, 0.24, 0, bg);
+    b.m('vrs_gantry', box(1.3, 0.02, 0.025, mat(C.rail)), 0, 0.24, 0.08, bg);
+    const cg = b.add(new T.Group(), 0, 0, 0, bg);
+    b.m('vrs_gantry', box(0.16, 0.12, 0.03, mat(C.slider, { metal: 0.5 })), 0, 0.24, 0.1, cg);
+    const head = new T.Group();
+    head.add(box(0.12, 0.16, 0.12, mat(C.head, { metal: 0.4 })));
+    head.add(at(cyl(0.035, 0.08, mat(0x0f172a, { rough: 0.2 })), 0, -0.12, 0));
+    b.m('optics', head, 0, 0.2, 0.18, cg);
+    const ring = new T.Mesh(new T.TorusGeometry(0.055, 0.012, 8, 32), mat(C.light, { emissive: 0x334155 }));
+    ring.rotation.x = Math.PI / 2;
+    b.m('vrs_light', ring, 0, 0.04, 0.18, cg);
+    // 後方上蓋
+    b.shell(extrudeProfile(s => { s.moveTo(0.2, 0); s.lineTo(-0.2, 0); s.quadraticCurveTo(-0.2, 0.22, 0.05, 0.25); s.lineTo(0.2, 0.25); s.closePath(); },
+      W, mat(0x3b82c4, { shell: true })), 0, 1.22, -0.62);
+    b.m('vacuum_pump', box(0.35, 0.28, 0.28, mat(0x475569)), 0.4, 0.2, -0.25);
+    // 動作:相機在缺陷點之間移動(複判)
+    let from = [0, 0], to = [0, 0], t0 = 0;
+    return { target: [0, 0.95, 0.05], cam: [2.0, 1.9, 2.5], animate: t => {
+      const k = Math.min(1, (t - t0) / 0.7), e = k * k * (3 - 2 * k);
+      cg.position.x = from[0] + (to[0] - from[0]) * e;
+      bg.position.z = from[1] + (to[1] - from[1]) * e;
+      if (t - t0 > 1.4) { from = to; to = [(Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.6]; t0 = t; }
+    } };
+  }
+
+  const MODELS = { fusion22, discovery, vrs };
 
   function mount(el, opt) {
     const W = () => el.clientWidth, H = () => el.clientHeight;
@@ -235,15 +284,14 @@
     const ro = new ResizeObserver(() => { camera.aspect = W() / H(); camera.updateProjectionMatrix(); renderer.setSize(W(), H()); });
     ro.observe(el);
 
-    // 掃描動作模擬:X 軸來回掃描,Y 平台逐步前後移動
+    // 動作模擬(各機型自訂)
     let anim = true, alive = true;
     const clock = new T.Clock();
     (function loop() {
       if (!alive) return;
       if (anim) {
         const t = clock.getElapsedTime();
-        k.xg.position.x = (k.hx - 0.25) * Math.sin(t * 1.8);
-        k.yg.position.z = (opt.model === 'fusion22' ? -0.05 : 0) + (k.depth / 2 - 0.45) * Math.sin(t * 0.35);
+        k.animate(t);
       }
       controls.update();
       renderer.render(scene, camera);

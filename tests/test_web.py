@@ -19,7 +19,8 @@ class WebTest(unittest.TestCase):
         cls.tmp = tempfile.mkdtemp()
         shutil.copytree(SAMPLES / "vibration", Path(cls.tmp) / "vibration")
         for f in ("machines.json", "d8_history.csv", "d8_maintenance_log.csv",
-                  "f22_history.csv", "f22_maintenance_log.csv", "spares.csv"):
+                  "f22_history.csv", "f22_maintenance_log.csv", "vrs_history.csv", "vrs_maintenance_log.csv",
+                  "spares.csv"):
             shutil.copy(SAMPLES / f, cls.tmp)
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(App(cls.tmp)))
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
@@ -40,7 +41,7 @@ class WebTest(unittest.TestCase):
     def test_overview_five_machines(self):
         ov = self.get("/api/overview")
         self.assertEqual([m["machine_id"] for m in ov["machines"]],
-                         ["DIS8-1", "DIS8-2", "DIS8-3", "FUS22-1", "FUS22-2"])
+                         ["DIS8-1", "DIS8-2", "DIS8-3", "FUS22-1", "FUS22-2"] + [f"VRS-{i}" for i in range(1, 7)])
         self.assertEqual(ov["errors"], [])
         self.assertTrue(ov["contacts"])
 

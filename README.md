@@ -1,6 +1,9 @@
 # AOI 機台預知保養與故障排除系統
 
-目前主要對象：**3 台 Orbotech Discovery 8（裸板 AOI）**，profile 為 `discovery8`（預設）。
+目前機台（共 11 台，電測 6 台待加入）：
+- 3 台 Orbotech Discovery（裸板 AOI）：`discovery8`
+- 2 台 KLA Fusion 22（裸板 AOI）：`fusion22`
+- 6 台 Orbotech VRS（缺陷複判站）：`vrs`
 
 **在故障發生前就預警。** 從機台感測資料的長期趨勢，預測幾天後會超標，
 再搭配定期保養週期（天數、運轉時數、過板數），列出保養待辦和處理步驟。

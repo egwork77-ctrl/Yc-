@@ -1,0 +1,185 @@
+{
+  "_說明": "Orbotech VRS 缺陷複判站(Verification Repair Station)。門檻與週期為暫定值,請依原廠手冊與實際基準調整。",
+  "sensors": {
+    "focus_score": {
+      "name": "影像清晰度",
+      "min_alarm": 70,
+      "min_warn": 80
+    },
+    "light_intensity": {
+      "name": "照明亮度(%基準)",
+      "min_alarm": 75,
+      "min_warn": 85
+    },
+    "vacuum_kpa": {
+      "name": "平台真空(kPa)",
+      "min_alarm": 45,
+      "min_warn": 55
+    },
+    "gantry_error_um": {
+      "name": "橋架定位誤差(μm)",
+      "max_warn": 20,
+      "max_alarm": 40
+    },
+    "move_time_ms": {
+      "name": "移動到缺陷點時間(ms)",
+      "max_warn": 600,
+      "max_alarm": 900
+    }
+  },
+  "zscore_limit": 3.0,
+  "trend_window": 10,
+  "trend_slope_warn": {
+    "gantry_error_um": 0.5,
+    "move_time_ms": 5
+  },
+  "trend_slope_fall_warn": {
+    "light_intensity": 0.3,
+    "focus_score": 0.5,
+    "vacuum_kpa": 0.5
+  },
+  "unstable_cv": {
+    "move_time_ms": 0.2
+  },
+  "predict": {
+    "window_days": 14,
+    "min_points": 5,
+    "min_r2": 0.5,
+    "urgent_days": 3,
+    "soon_days": 14
+  },
+  "maintenance": [
+    {
+      "item": "鏡頭 / 保護玻璃清潔",
+      "every_days": 7
+    },
+    {
+      "item": "吸附平台清潔",
+      "every_days": 7
+    },
+    {
+      "item": "照明與相機校正(校正片)",
+      "every_days": 30
+    },
+    {
+      "item": "鍵盤 / 軌跡球清潔檢查",
+      "every_days": 30
+    },
+    {
+      "item": "橋架導軌清潔潤滑",
+      "every_hours": 2000,
+      "counter": "run_hours"
+    },
+    {
+      "item": "照明光源更換(依原廠壽命)",
+      "every_hours": 10000,
+      "counter": "light_hours"
+    }
+  ],
+  "parts_safety_days": 3,
+  "parts": [
+    {
+      "id": "vrs_light",
+      "name": "VRS 照明光源",
+      "sensors": [
+        "light_intensity"
+      ],
+      "life_item": "照明光源更換(依原廠壽命)",
+      "lead_days": 21
+    },
+    {
+      "id": "optics",
+      "name": "相機鏡頭 / 保護玻璃",
+      "sensors": [
+        "focus_score"
+      ],
+      "lead_days": 30
+    },
+    {
+      "id": "vrs_gantry",
+      "name": "橋架導軌 / 皮帶 / 馬達",
+      "sensors": [
+        "gantry_error_um",
+        "move_time_ms"
+      ],
+      "lead_days": 30
+    },
+    {
+      "id": "vacuum_pump",
+      "name": "真空幫浦 / 真空管路",
+      "sensors": [
+        "vacuum_kpa"
+      ],
+      "lead_days": 21
+    }
+  ],
+  "events": [
+    {
+      "id": "image_blur",
+      "name": "影像模糊",
+      "symptoms": [
+        "focus_score_low"
+      ]
+    },
+    {
+      "id": "image_dark",
+      "name": "影像偏暗 / 亮度不均",
+      "symptoms": [
+        "light_intensity_low"
+      ]
+    },
+    {
+      "id": "coord_offset",
+      "name": "缺陷點位置偏移",
+      "symptoms": [
+        "coord_offset"
+      ]
+    },
+    {
+      "id": "slow_move",
+      "name": "移動變慢 / 頓挫",
+      "symptoms": [
+        "move_time_ms_high",
+        "gantry_error_um_high"
+      ]
+    },
+    {
+      "id": "gantry_noise",
+      "name": "橋架異音",
+      "symptoms": [
+        "gantry_error_um_rising"
+      ]
+    },
+    {
+      "id": "board_not_held",
+      "name": "板子吸不住",
+      "symptoms": [
+        "vacuum_kpa_low"
+      ]
+    },
+    {
+      "id": "data_link",
+      "name": "抓不到 AOI 資料 / 連線中斷",
+      "symptoms": [
+        "data_link"
+      ]
+    },
+    {
+      "id": "keypad",
+      "name": "鍵盤 / 軌跡球失靈",
+      "symptoms": [
+        "keypad"
+      ]
+    },
+    {
+      "id": "machine_stop",
+      "name": "當機 / 警報停機",
+      "symptoms": [],
+      "alert_count": 1
+    }
+  ],
+  "event_rules": {
+    "count": 3,
+    "minutes": 30
+  }
+}

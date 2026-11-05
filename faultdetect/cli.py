@@ -112,7 +112,7 @@ def main(argv=None):
     g = sub.add_parser("sample", help="產生範例資料")
     g.add_argument("out")
     g.add_argument("--type", choices=["generic", "aoi", "aoi-results", "aoi-history", "maintenance-log",
-                                       "d8-history", "d8-log", "d8-results", "f22-history", "f22-log"], default="generic")
+                                       "d8-history", "d8-log", "d8-results", "f22-history", "f22-log", "vrs-history", "vrs-log"], default="generic")
 
     args = p.parse_args(argv)
 

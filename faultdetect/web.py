@@ -18,7 +18,7 @@ from .live import Live, LogWatcher
 
 STATIC_DIR = Path(__file__).with_name("static")
 STATIC_TYPES = {".js": "application/javascript", ".css": "text/css", ".glb": "model/gltf-binary"}
-MODEL3D = {"discovery8": "discovery", "fusion22": "fusion22"}
+MODEL3D = {"discovery8": "discovery", "fusion22": "fusion22", "vrs": "vrs"}
 
 REPAIR_FIELDS = ["time", "machine_id", "fault_id", "fault_name", "result", "solved_step",
                  "steps_done", "technician", "note"]
@@ -299,7 +299,7 @@ async function sendMaint(){try{const r=await api('/api/maintenance',{method:'POS
  catch(e){$('#mres').innerHTML=`<p style="color:var(--red)">${esc(e.message)}</p>`;}}
 
 async function upload(){V.innerHTML=`<div class="card"><h2>上傳資料分析</h2><p class="muted">從機台匯出的 CSV(歷史感測資料 → 預知保養;檢測結果 → 故障診斷)</p>
- <select id="prof"><option value="discovery8">Orbotech Discovery 8</option><option value="fusion22">KLA Fusion 22</option><option value="aoi">SMT AOI</option><option value="generic">一般機台</option></select><br><br>
+ <select id="prof"><option value="discovery8">Orbotech Discovery 8</option><option value="fusion22">KLA Fusion 22</option><option value="vrs">Orbotech VRS</option><option value="aoi">SMT AOI</option><option value="generic">一般機台</option></select><br><br>
  <input type="file" id="file" accept=".csv"><br><br><textarea id="csv" placeholder="或貼上 CSV 內容"></textarea><br><br>
  <div class="row"><button onclick="up('predict')">🔧 預知保養</button><button class="ghost" onclick="up('analyze')">即時故障診斷</button></div></div><div id="out"></div>`;
  $('#file').onchange=e=>{const r=new FileReader();r.onload=()=>$('#csv').value=r.result;r.readAsText(e.target.files[0]);};}

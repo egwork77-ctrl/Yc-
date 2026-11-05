@@ -1,0 +1,140 @@
+{
+  "faults": [
+    {
+      "id": "vrs_optics",
+      "category": "VRS 機台",
+      "name": "相機鏡頭髒污 / 失焦",
+      "symptoms": {
+        "focus_score_low": 3,
+        "focus_score_falling": 2
+      },
+      "steps": [
+        "以無塵布 + 專用清潔液清潔鏡頭與保護玻璃",
+        "執行相機對焦校正",
+        "確認板子平貼(板翹會失焦)",
+        "檢查相機固定螺絲是否鬆動"
+      ],
+      "improve": [
+        "鏡頭清潔納入每班交接",
+        "記錄每次校正的清晰度數值看趨勢",
+        "改善周邊落塵"
+      ]
+    },
+    {
+      "id": "vrs_light",
+      "category": "VRS 機台",
+      "name": "照明光源衰減",
+      "symptoms": {
+        "light_intensity_low": 3,
+        "light_intensity_falling": 2
+      },
+      "steps": [
+        "執行照明校正並與上次數值比較",
+        "檢查光源 / 光纖導光是否髒污或折損",
+        "接近壽命時更換光源",
+        "更換後以校正片驗證"
+      ],
+      "improve": [
+        "光源使用時數管理,提前備料",
+        "校正值低於 85% 即排程更換"
+      ]
+    },
+    {
+      "id": "vrs_coord",
+      "category": "VRS 機台",
+      "name": "缺陷座標偏移(與 AOI 不一致)",
+      "symptoms": {
+        "coord_offset": 4,
+        "gantry_error_um_high": 1
+      },
+      "steps": [
+        "用校正片執行 VRS 座標 / 原點校正",
+        "確認板子放置方向與定位銷正確",
+        "確認 AOI 與 VRS 使用同一版 CAM / 料號資料",
+        "檢查 AOI 端對位是否正常"
+      ],
+      "improve": [
+        "每月做 AOI–VRS 座標比對",
+        "建立放板方向防呆(定位銷、標示)",
+        "料號資料版本由系統統一派送"
+      ]
+    },
+    {
+      "id": "vrs_gantry",
+      "category": "VRS 機台",
+      "name": "橋架導軌 / 皮帶 / 馬達磨耗",
+      "symptoms": {
+        "gantry_error_um_high": 3,
+        "gantry_error_um_rising": 3,
+        "move_time_ms_high": 2,
+        "move_time_ms_unstable": 1
+      },
+      "steps": [
+        "清潔導軌並依規定潤滑",
+        "檢查皮帶張力與磨損、皮帶輪是否鬆動",
+        "檢查馬達 / 編碼器接頭",
+        "執行橋架定位校正"
+      ],
+      "improve": [
+        "導軌潤滑依運轉時數管理",
+        "記錄定位誤差趨勢,上升時提前備皮帶 / 滑塊",
+        "裝振動感測器監測馬達軸承"
+      ]
+    },
+    {
+      "id": "vrs_vacuum",
+      "category": "VRS 機台",
+      "name": "吸附平台真空不足",
+      "symptoms": {
+        "vacuum_kpa_low": 3,
+        "vacuum_kpa_falling": 2
+      },
+      "steps": [
+        "清潔吸附平台吸孔",
+        "檢查真空管路與接頭漏氣",
+        "檢查真空幫浦濾網",
+        "小板使用遮蓋板封住未用吸孔"
+      ],
+      "improve": [
+        "平台清潔納入每日點檢",
+        "記錄每日真空值看趨勢"
+      ]
+    },
+    {
+      "id": "vrs_datalink",
+      "category": "VRS 系統",
+      "name": "與 AOI 資料連線異常",
+      "symptoms": {
+        "data_link": 4
+      },
+      "steps": [
+        "確認網路線與交換器燈號",
+        "確認 AOI 伺服器 / 分享資料夾可連線",
+        "重新登入料號或重新載入批號",
+        "重啟 VRS 程式(依 SOP)"
+      ],
+      "improve": [
+        "VRS 與 AOI 主機改固定 IP 並監控連線",
+        "伺服器磁碟空間定期清理",
+        "記錄斷線時間,與 IT 一起找出原因"
+      ]
+    },
+    {
+      "id": "vrs_keypad",
+      "category": "VRS 機台",
+      "name": "鍵盤 / 軌跡球失靈",
+      "symptoms": {
+        "keypad": 4
+      },
+      "steps": [
+        "清潔軌跡球與按鍵",
+        "重新插拔 USB / 連接線",
+        "更換備用鍵盤測試"
+      ],
+      "improve": [
+        "備用鍵盤 / 軌跡球至少 1 組",
+        "鍵盤清潔納入每月保養"
+      ]
+    }
+  ]
+}
