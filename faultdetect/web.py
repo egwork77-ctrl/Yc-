@@ -15,6 +15,10 @@ from urllib.parse import parse_qs, urlparse
 
 from . import detector, diagnosis, engine, predict
 
+STATIC_DIR = Path(__file__).with_name("static")
+STATIC_TYPES = {".js": "application/javascript", ".css": "text/css", ".glb": "model/gltf-binary"}
+MODEL3D = {"discovery8": "discovery", "fusion22": "fusion22"}
+
 REPAIR_FIELDS = ["time", "machine_id", "fault_id", "fault_name", "result", "solved_step",
                  "steps_done", "technician", "note"]
 _lock = threading.Lock()
@@ -94,7 +98,16 @@ let S={ov:null,m:null,faults:[],f:null,i:0};
 async function api(p,o){const r=await fetch(p,o);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j;}
 function nav(v){document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v));}
 document.querySelectorAll('nav a').forEach(a=>a.onclick=e=>{e.preventDefault();go(a.dataset.v);});
-function go(v,...a){cur=v;nav(v==='machine'?'overview':['faults','step','end'].includes(v)?'pick':v);window.scrollTo(0,0);
+let m3d=null;
+const loadJS=src=>new Promise((ok,no)=>{if(document.querySelector(`script[src="${src}"]`))return ok();const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s);});
+async function show3d(m){const el=$('#m3d');if(!el)return;
+ try{await loadJS('/static/three.min.js');await loadJS('/static/OrbitControls.js');await loadJS('/static/model3d.js');}
+ catch(e){el.innerHTML='<p class="muted">3D 載入失敗</p>';return;}
+ const info=$('#pinfo');
+ m3d=AOI3D.mount(el,{model:m.model3d,parts:m.parts,onPick:id=>{const p=m.parts.find(x=>x.part_id===id);
+  info.innerHTML=p?`<b>${esc(p.name)}</b> · 健康 ${p.health} · 預計更換 ${dd(p.due_days)} · 庫存 ${p.stock} · ${PS[p.status]}<div class="muted">${esc(p.reasons.join(';')||'目前無異常趨勢')}</div>`
+  :`<b>${esc(id)}</b><div class="muted">尚無此零件資料</div>`;}});}
+function go(v,...a){cur=v;if(m3d){m3d.dispose();m3d=null;}nav(v==='machine'?'overview':['faults','step','end'].includes(v)?'pick':v);window.scrollTo(0,0);
  ({overview,machine,inspect,parts,pick,faults,step,end,records,upload})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
 async function load(){S.ov=await api('/api/overview');autoRefresh(S.ov.refresh||60);return S.ov;}
 
@@ -111,10 +124,15 @@ async function machine(id){const ov=S.ov||await load();const m=ov.machines.find(
  V.innerHTML=`<div class="card ${m.level}"><h2>${esc(m.name)}</h2><div class="muted">${esc(m.machine_id)} · ${esc(m.model)} · 資料至 ${esc(m.as_of||'—')}</div>
  <p>健康度 <b>${m.health}</b></p><div class="bar"><i style="width:${m.health}%;background:${hcol(m.health)}"></i></div>
  <div class="row" style="margin-top:14px"><button onclick="go('faults','${esc(id)}')">🔧 開始排除故障</button></div></div>
+ ${m.model3d?`<div class="card"><h3>🧊 3D 機台</h3><p class="muted">拖曳旋轉、雙指縮放,點選零件查看資料(外型依現場照片估計)</p>
+ <div id="m3d" style="height:min(60vh,460px);border-radius:12px;overflow:hidden;touch-action:none"></div>
+ <div class="row" style="margin-top:10px"><button class="ghost" onclick="this.textContent=m3d.toggleXray()?'👁 透視:開':'👁 透視:關'">👁 透視:開</button>
+ <button class="ghost" onclick="m3d.reset()">↺ 重設視角</button></div><div id="pinfo" style="margin-top:10px" class="muted">點選零件查看資料</div></div>`:''}
  <div class="card"><h3>零件健康度</h3><div style="overflow-x:auto"><table><tr>${PH}</tr>${m.parts.map(p=>partRow(p)).join('')}</table></div></div>
  <div class="card"><h3>保養待辦</h3><ul>${m.tasks.map(t=>`<li>${LV[t.level]} [${esc(t.type)}] ${esc(t.item)} → ${esc(t.action)}(${dd(t.due_days)})</li>`).join('')||'<li>無</li>'}</ul>
  <h3>感測趨勢</h3><table><tr><th>項目</th><th>現值</th><th>趨勢</th><th>健康</th><th>預計超標</th></tr>${m.predictions.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.current}</td>
- <td>${p.r2>=0.5?(p.slope_per_day>0?'+':'')+p.slope_per_day+'/天':'穩定'}</td><td>${p.health}</td><td>${dd(p.due_days)}</td></tr>`).join('')}</table></div>`;}
+ <td>${p.r2>=0.5?(p.slope_per_day>0?'+':'')+p.slope_per_day+'/天':'穩定'}</td><td>${p.health}</td><td>${dd(p.due_days)}</td></tr>`).join('')}</table></div>`;
+ show3d(m);}
 
 const msel=(ov,id)=>`<select id="msel">${ov.machines.map(m=>`<option value="${esc(m.machine_id)}">${esc(m.name)}(${esc(m.machine_id)})</option>`).join('')}</select>`;
 let lastM=null;
@@ -244,13 +262,15 @@ class App:
                                      spares_source=sp if sp and sp.exists() else None):
                     info = machines.get(r["machine_id"], {})
                     out.append({**r, "profile": src["profile"], "name": info.get("name", r["machine_id"]),
-                                "model": info.get("model", src["profile"])})
+                                "model": info.get("model", src["profile"]),
+                                "model3d": info.get("model3d") or MODEL3D.get(src["profile"])})
             except Exception as e:  # noqa: BLE001
                 errors.append(f"{hist.name} 分析失敗:{e}")
         seen = {m["machine_id"] for m in out}
         for mid, info in machines.items():  # 有登錄但沒資料的機台也要能排除故障
             if mid not in seen:
                 out.append({"machine_id": mid, "name": info.get("name", mid), "model": info.get("model", ""),
+                             "model3d": info.get("model3d") or MODEL3D.get(info.get("profile")),
                              "profile": info.get("profile", "generic"), "health": 100, "level": "ok",
                              "as_of": None, "parts": [], "predictions": [], "schedule": [], "tasks": []})
         order = list(machines)
@@ -417,6 +437,18 @@ def make_handler(app):
             self.end_headers()
             self.wfile.write(data)
 
+        def _static(self, name):
+            f = (STATIC_DIR / name).resolve()
+            if STATIC_DIR.resolve() not in f.parents or not f.is_file() or f.suffix not in STATIC_TYPES:
+                return self._send(404, {"error": "not found"})
+            data = f.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", STATIC_TYPES[f.suffix])
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "max-age=86400")
+            self.end_headers()
+            self.wfile.write(data)
+
         def _err(self, e, code=400):
             self._send(code, {"error": str(e)})
 
@@ -426,6 +458,8 @@ def make_handler(app):
             try:
                 if url.path == "/":
                     return self._send(200, PAGE, "text/html")
+                if url.path.startswith("/static/"):
+                    return self._static(url.path[len("/static/"):])
                 if url.path == "/api/overview":
                     return self._send(200, app.overview())
                 if url.path == "/api/faults":
