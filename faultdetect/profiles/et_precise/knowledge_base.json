@@ -7,7 +7,9 @@
       "symptoms": {
         "contact_fail_pts_high": 3,
         "contact_fail_pts_rising": 2,
-        "false_fail_pct_high": 2
+        "false_fail_pct_high": 2,
+        "repeat_pin": 3,
+        "spread_false": 2
       },
       "steps": [
         "以放大鏡檢查誤測點對應的測試針是否磨平、彎曲、沾錫或氧化",
@@ -28,7 +30,8 @@
       "symptoms": {
         "fixture_offset": 4,
         "pin_mark": 2,
-        "false_fail_pct_high": 1
+        "false_fail_pct_high": 1,
+        "region_edge": 3
       },
       "steps": [
         "檢查定位 PIN 是否磨耗、鬆動",
@@ -69,7 +72,8 @@
         "air_pressure_low": 3,
         "air_pressure_falling": 2,
         "press_abn": 3,
-        "air_pressure_unstable": 2
+        "air_pressure_unstable": 2,
+        "region_edge": 2
       },
       "steps": [
         "確認廠務氣源壓力與機台調壓閥",
@@ -87,7 +91,8 @@
       "category": "電測機台",
       "name": "測試格點 / 開關卡異常",
       "symptoms": {
-        "selftest_fail_pins_high": 4
+        "selftest_fail_pins_high": 4,
+        "machine_wide": 3
       },
       "steps": [
         "執行系統自我測試,記錄失效格點位置",
@@ -217,6 +222,68 @@
       "improve": [
         "同型號機台的開關卡、排線可互換測試,建立互換紀錄",
         "無法修復的機台可評估作為同型號備品零件來源"
+      ]
+    },
+    {
+      "id": "et_fixture",
+      "category": "電測治具(針床)",
+      "name": "針床治具本身問題(層板孔磨耗、針長不一、卡針)",
+      "symptoms": {
+        "fixture_wide": 4,
+        "repeat_pin": 1,
+        "spread_false": 1
+      },
+      "steps": [
+        "把治具拆到工作台,逐層檢查導引層板(黃色板)孔是否磨大、層板間對位是否錯位",
+        "檢查支撐柱(藍色)是否鬆動、層板是否變形下垂",
+        "抽檢針長:同一副治具的針長應一致,短針會接觸不到",
+        "手壓檢查有無卡針、斷針、針尾彈簧失效",
+        "更換問題針後,先用標準板測試再上線"
+      ],
+      "improve": [
+        "每副治具建立履歷:壓合次數、換針紀錄、假點率",
+        "治具壓合次數到達上限前就整副保養",
+        "治具存放防塵、防壓(不要疊放)",
+        "新治具驗收時記錄基準假點率"
+      ]
+    },
+    {
+      "id": "et_surface",
+      "category": "上游製程-板面",
+      "name": "板面污染 / 氧化(綠漆、助焊劑、指紋)",
+      "symptoms": {
+        "spread_false": 2
+      },
+      "steps": [
+        "用放大鏡看假點 PAD 是否有綠漆殘留、氧化、異物",
+        "同料號不同批次比較:只有某批假點多 → 板面問題",
+        "清潔板面(依製程規定)後重測",
+        "回饋前製程(防焊 / 表面處理)"
+      ],
+      "improve": [
+        "假點率依料號 / 批號統計,超標回饋前製程",
+        "作業人員戴手套拿板邊,避免指紋污染"
+      ]
+    },
+    {
+      "id": "et_machine_align",
+      "category": "電測機台",
+      "name": "機台壓合平行度 / 治具定位機構偏移(換治具仍集中同一側)",
+      "symptoms": {
+        "machine_wide": 3,
+        "region_edge": 3
+      },
+      "steps": [
+        "用感壓紙或厚薄規量測上下壓板四角間隙,確認平行度",
+        "檢查機台上的治具定位銷 / 夾持機構是否磨耗、鬆動",
+        "檢查假點集中那一側的導柱與直線軸承是否卡滯",
+        "確認上下治具對位(上下針是否對準同一 PAD)",
+        "調整後用同一副治具在本機與正常機台比對假點率"
+      ],
+      "improve": [
+        "每季量測壓板平行度並記錄",
+        "治具定位機構列入定期保養",
+        "建立「治具 × 機台」假點率交叉表,每週檢討"
       ]
     }
   ]

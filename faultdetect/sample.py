@@ -329,6 +329,39 @@ def write_et_log(path):
             w.writerow(("2025-06-01", mid, "測試針 / 彈簧針更換", str(200000 + n * 50000 - 330000 + n * 20000)))
 
 
-SAMPLES = {"et-history": write_et_history, "et-log": write_et_log, "vrs-history": write_vrs_history, "vrs-log": write_vrs_log, "f22-history": write_f22_history, "f22-log": write_f22_log,
+def write_et_points(path, boards=150, seed=88):
+    """電測不良點紀錄(模擬):
+    FX-A 在 ET1、ET6 都有固定針位假點(針床治具問題);
+    ET5 換 FX-B、FX-C 都假點高且集中左側(機台對位 / 壓合問題);其餘正常。"""
+    rnd = random.Random(seed)
+    start = datetime(2026, 1, 20, 8, 0)
+    plan = [("ET1", "FX-A"), ("ET6", "FX-A"), ("ET1", "FX-B"), ("ET5", "FX-B"), ("ET5", "FX-C"), ("ET6", "FX-C")]
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["timestamp", "machine_id", "fixture_id", "board_id", "point", "x", "y",
+                                          "fail_type", "retest"])
+        w.writeheader()
+        for k, (mid, fx) in enumerate(plan):
+            for b in range(boards):
+                base = {"timestamp": (start + timedelta(minutes=k * 400 + b)).isoformat(timespec="minutes"),
+                        "machine_id": mid, "fixture_id": fx, "board_id": f"{mid}-{fx}-{b:04d}"}
+                pts = []
+                if rnd.random() < 0.08:                                   # 一般零星假點
+                    pts.append((rnd.randint(1, 3000), rnd.uniform(0, 500), rnd.uniform(0, 400), "pass"))
+                if rnd.random() < 0.03:                                   # 真不良
+                    pts.append((rnd.randint(1, 3000), rnd.uniform(0, 500), rnd.uniform(0, 400), "fail"))
+                if fx == "FX-A":
+                    if rnd.random() < 0.25: pts.append((456, 120.5, 88.0, "pass"))
+                    if rnd.random() < 0.15: pts.append((1203, 310.0, 240.5, "pass"))
+                if mid == "ET5":
+                    for _ in range(rnd.choice([0, 1, 1, 2])):
+                        pts.append((rnd.randint(1, 3000), rnd.uniform(0, 80), rnd.uniform(0, 400), "pass"))
+                if not pts:
+                    w.writerow({**base, "point": "", "x": "", "y": "", "fail_type": "", "retest": ""})
+                for pin, x, y, rt in pts:
+                    w.writerow({**base, "point": f"P-{pin:04d}", "x": round(x, 1), "y": round(y, 1),
+                                "fail_type": "open" if rnd.random() < 0.8 else "short", "retest": rt})
+
+
+SAMPLES = {"et-points": write_et_points, "et-history": write_et_history, "et-log": write_et_log, "vrs-history": write_vrs_history, "vrs-log": write_vrs_log, "f22-history": write_f22_history, "f22-log": write_f22_log,
            "d8-history": write_d8_history, "d8-log": write_d8_log, "d8-results": write_d8_results,
            "aoi-history": write_aoi_history, "maintenance-log": write_maintenance_log, "generic": write_sample, "aoi": write_aoi_sensors, "aoi-results": write_aoi_results}
