@@ -30,6 +30,7 @@ python -m faultdetect serve --host 0.0.0.0 --data samples
 | 🔧 排除故障 | 選機台 → 選問題（⭐ 為系統推薦）→ 一步一步排除 → 解決或升級處理並記錄 |
 | 📝 紀錄 | 登錄保養／更換（重新計算壽命、自動扣庫存）＋維修紀錄 |
 | 📤 上傳分析 | 臨時上傳 CSV 分析 |
+| ⚙️ 設定 | 直接在 iPad 修改機台資料（型號、序號、進廠日期）、停機狀態、外部校正日期、聯絡窗口（會寫回 `machines.json`） |
 
 資料目錄設定在 `machines.json`：資料來源、機台清單、聯絡窗口、備品檔 `spares.csv`
 （machine_id(`*`=全部), part_id, part_no, stock, lead_days）。

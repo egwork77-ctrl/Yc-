@@ -88,6 +88,22 @@ class WebTest(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError):
             self.post("/api/et/points", {"machine_id": "D83", "fixture_id": "X", "pins": "1"})
 
+    def test_settings_edit_and_calibration_reset(self):
+        self.post("/api/settings/machine", {"id": "ET4", "model": "Mania PRECISE 400", "status": "",
+                                            "calibration": {"by": "ATT", "last": "2024-03-09", "next": "2025-03-08"}})
+        m = {x["id"]: x for x in self.get("/api/settings")["machines"]}["ET4"]
+        self.assertEqual(m["model"], "Mania PRECISE 400")
+        self.assertNotIn("status", m)                                   # 由停機改回正常
+        ov = {x["machine_id"]: x for x in self.get("/api/overview")["machines"]}
+        self.assertTrue(any(t["type"] == "校正" for t in ov["ET4"]["tasks"]))
+        self.post("/api/maintenance", {"machine_id": "ET4", "item": "外部校正(ATT)"})
+        ov = {x["machine_id"]: x for x in self.get("/api/overview")["machines"]}
+        self.assertFalse(any(t["type"] == "校正" for t in ov["ET4"]["tasks"]))   # 登錄校正後提醒消失
+        self.post("/api/settings/contacts", {"contacts": [{"name": "設備課", "phone": "#123"}, {"name": ""}]})
+        self.assertEqual(self.get("/api/settings")["contacts"], [{"name": "設備課", "phone": "#123", "note": ""}])
+        with self.assertRaises(urllib.error.HTTPError):
+            self.post("/api/settings/machine", {"id": "ET4", "calibration": {"next": "明年"}})
+
     def test_faults(self):
         ids = [f["id"] for f in self.get("/api/faults?profile=fusion22")]
         self.assertIn("light_channel", ids)

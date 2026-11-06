@@ -88,7 +88,7 @@ nav{overflow-x:auto}nav a{flex:1 0 76px;text-align:center;padding:12px 0;color:v
 ul{padding-left:20px}li{margin:4px 0}table{border-collapse:collapse;width:100%}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left;font-size:15px}
 </style></head><body>
 <header id="title">AOI 現場排除</header><main id="view"></main>
-<nav><a href="#" data-v="overview">📊 總覽</a><a href="#" data-v="live">▶️ 監看</a><a href="#" data-v="inspect">📋 點檢</a><a href="#" data-v="pins">📍 假點</a><a href="#" data-v="parts">📦 備料</a><a href="#" data-v="pick">🔧 排除故障</a><a href="#" data-v="records">📝 紀錄</a><a href="#" data-v="upload">📤 上傳分析</a></nav>
+<nav><a href="#" data-v="overview">📊 總覽</a><a href="#" data-v="live">▶️ 監看</a><a href="#" data-v="inspect">📋 點檢</a><a href="#" data-v="pins">📍 假點</a><a href="#" data-v="parts">📦 備料</a><a href="#" data-v="pick">🔧 排除故障</a><a href="#" data-v="records">📝 紀錄</a><a href="#" data-v="upload">📤 上傳分析</a><a href="#" data-v="settings">⚙️ 設定</a></nav>
 <script>
 const $=s=>document.querySelector(s), V=$('#view');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -170,7 +170,7 @@ function fs3d(){const el=$('#m3d');const on=!el.classList.contains('fs');el.clas
  let x=$('#fsx');if(on&&!x){x=document.createElement('button');x.id='fsx';x.textContent='✕ 離開全螢幕';x.onclick=fs3d;
   x.style.cssText='position:fixed;top:12px;right:12px;z-index:60;background:rgba(15,23,42,.8)';document.body.appendChild(x);}else if(!on&&x)x.remove();}
 function go(v,...a){cur=v;const fx=$('#fsx');if(fx)fx.remove();if(m3d){m3d.dispose();m3d=null;}nav(v==='machine'?'overview':v==='report'?'records':['faults','step','end'].includes(v)?'pick':v);window.scrollTo(0,0);
- ({overview,machine,live,report,inspect,pins,parts,pick,faults,step,end,records,upload})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
+ ({overview,machine,live,report,inspect,pins,parts,pick,faults,step,end,records,upload,settings})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
 async function load(){S.ov=await api('/api/overview');autoRefresh(S.ov.refresh||60);return S.ov;}
 
 async function overview(){V.innerHTML='<p class="muted">載入中…</p>';const ov=await load();
@@ -280,6 +280,28 @@ function renderPins(rep){const el=$('#pres');if(!el)return;
  <div class="row" style="align-items:flex-start;margin-top:6px"><table style="flex:1">${e.top.slice(0,5).map(([p,n])=>`<tr><td>${esc(p)}</td><td>${n} 次</td></tr>`).join('')}</table>
  ${Object.keys(e.cells).length?`<div style="flex:1">${heat(e.cells)}<div class="muted">治具位置分布</div></div>`:''}</div></div>`).join('')||'<p class="muted">尚無假點</p>'}</div>`;}
 
+const SF=[['name','顯示名稱'],['model','型號'],['serial','序號'],['asset_no','設備 No.'],['card','卡號'],['installed','進廠日期(YYYY-MM-DD)'],['dept','保管單位'],['note','備註']];
+let setM=null;
+async function settings(){const st=await api('/api/settings');if(!setM||!st.machines.some(m=>m.id===setM))setM=st.machines[0]&&st.machines[0].id;
+ const m=st.machines.find(x=>x.id===setM)||{},cal=m.calibration||{};
+ V.innerHTML=`<div class="card"><h2>⚙️ 機台資料</h2><select id="sm" onchange="setM=this.value;settings()">${st.machines.map(x=>`<option value="${esc(x.id)}" ${x.id===setM?'selected':''}>${esc(x.id)} · ${esc(x.model||'')}${x.status==='down'?' 🛑':''}</option>`).join('')}</select>
+ ${SF.map(([k,t])=>`<div class="num"><label>${t}</label><input data-f="${k}" value="${esc(m[k]||'')}" style="max-width:none;flex:2;font-size:17px"></div>`).join('')}
+ <h3>狀態</h3><div class="row seg"><button id="st_ok" class="${m.status==='down'?'ghost':''}" onclick="setSt('ok')">🟢 正常運轉</button><button id="st_down" class="${m.status==='down'?'':'ghost'}" onclick="setSt('down')">🛑 停機待修</button></div>
+ <div id="downbox" style="display:${m.status==='down'?'':'none'}"><br><input id="snote" placeholder="故障現象(例:壓合不動作、開不了機)" value="${esc(m.status_note||'')}"></div>
+ <h3>外部校正</h3><div class="num"><label>校正單位</label><input id="cby" value="${esc(cal.by||'')}" placeholder="例:ATT" style="max-width:none;flex:2"></div>
+ <div class="num"><label>上次校正</label><input id="clast" type="date" value="${esc(cal.last||'')}" style="max-width:none;flex:2"></div>
+ <div class="num"><label>下次校正</label><input id="cnext" type="date" value="${esc(cal.next||'')}" style="max-width:none;flex:2"></div>
+ <button style="width:100%;margin-top:10px" onclick="saveM()">💾 儲存機台資料</button></div>
+ <div class="card"><h2>📞 聯絡窗口</h2><p class="muted">「排除故障」做完仍無法解決時會顯示</p><div id="ctl">${st.contacts.map(cRow).join('')}</div>
+ <div class="row"><button class="ghost" onclick="$('#ctl').insertAdjacentHTML('beforeend',cRow({}))">＋ 新增窗口</button><button onclick="saveC()">💾 儲存聯絡窗口</button></div></div>`;}
+const cRow=c=>`<div class="row c-row" style="margin-bottom:8px"><input data-c="name" placeholder="名稱 / 職稱" value="${esc(c.name||'')}" style="flex:2"><input data-c="phone" placeholder="電話 / 分機" value="${esc(c.phone||'')}" style="flex:2"><input data-c="note" placeholder="備註" value="${esc(c.note||'')}" style="flex:2"></div>`;
+function setSt(v){$('#st_ok').className=v==='ok'?'':'ghost';$('#st_down').className=v==='down'?'':'ghost';$('#downbox').style.display=v==='down'?'':'none';}
+async function saveM(){const body={id:setM,status:$('#st_down').className===''?'down':'',status_note:$('#snote').value,calibration:{by:$('#cby').value,last:$('#clast').value,next:$('#cnext').value}};
+ document.querySelectorAll('[data-f]').forEach(i=>body[i.dataset.f]=i.value);
+ try{await api('/api/settings/machine',{method:'POST',body:JSON.stringify(body)});S.ov=null;toast('已儲存');settings();}catch(e){toast(e.message);}}
+async function saveC(){const contacts=[...document.querySelectorAll('.c-row')].map(r=>Object.fromEntries([...r.querySelectorAll('[data-c]')].map(i=>[i.dataset.c,i.value])));
+ try{await api('/api/settings/contacts',{method:'POST',body:JSON.stringify({contacts})});S.ov=null;toast('已儲存');settings();}catch(e){toast(e.message);}}
+
 async function parts(){const ov=S.ov||await load();
  const all=ov.machines.flatMap(m=>m.parts.map(p=>({...p,mname:m.name}))).filter(p=>p.due_days!=null)
   .sort((a,b)=>({order_now:0,order_soon:1,stocked:2,ok:3}[a.status]-{order_now:0,order_soon:1,stocked:2,ok:3}[b.status])||a.due_days-b.due_days);
@@ -375,6 +397,57 @@ class App:
         f = self.dir / "machines.json"
         self.meta = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
         self.live = Live(self.dir, self.meta, self.profile_of)
+
+    # ---- 設定(寫回 machines.json) ----
+    MACHINE_FIELDS = ("name", "model", "serial", "asset_no", "card", "installed", "dept", "note",
+                      "status", "status_note", "down_since")
+
+    def _save_meta(self):
+        f = self.dir / "machines.json"
+        with _lock:
+            tmp = f.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(self.meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            tmp.replace(f)
+
+    def settings(self):
+        return {"machines": self.meta.get("machines", []), "contacts": self.meta.get("contacts", [])}
+
+    def update_machine(self, body):
+        m = next((x for x in self.meta.get("machines", []) if x["id"] == body.get("id")), None)
+        if not m:
+            raise ValueError("找不到機台")
+        for k in self.MACHINE_FIELDS:
+            if k in body:
+                v = str(body[k] or "").strip()[:200]
+                if v:
+                    m[k] = v
+                else:
+                    m.pop(k, None)
+        if m.get("status") not in (None, "down"):
+            m.pop("status", None)
+        if m.get("status") == "down" and not m.get("down_since"):
+            m["down_since"] = datetime.now().date().isoformat()
+        if m.get("status") != "down":
+            for k in ("status_note", "down_since"):
+                m.pop(k, None)
+        if "calibration" in body:
+            c = {k: str(v).strip()[:40] for k, v in (body["calibration"] or {}).items() if k in ("by", "last", "next") and v}
+            for k in ("last", "next"):
+                if c.get(k):
+                    datetime.fromisoformat(c[k])          # 驗證日期格式
+            if c:
+                m["calibration"] = c
+            else:
+                m.pop("calibration", None)
+        self._save_meta()
+        return m
+
+    def update_contacts(self, body):
+        rows = [{k: str(c.get(k, "")).strip()[:100] for k in ("name", "phone", "note")}
+                for c in (body.get("contacts") or []) if str(c.get("name", "")).strip()]
+        self.meta["contacts"] = rows[:30]
+        self._save_meta()
+        return rows
 
     def profile_of(self, mid):
         m = next((x for x in self.meta.get("machines", []) if x["id"] == mid), None)
@@ -607,6 +680,15 @@ class App:
         row = {"date": datetime.now().date().isoformat(), "machine_id": mid, "item": item,
                **{c: last[c] for c in self._counters(cfg) if last.get(c)}}
         append_csv(log, row)
+        if "外部校正" in item:                              # 校正完成:銘牌校正日期一起更新為一年後
+            meta = next(x for x in self.meta["machines"] if x["id"] == mid)
+            today = datetime.now().date()
+            cal = dict(meta.get("calibration") or {})
+            cal.update(last=today.isoformat(), next=today.replace(year=today.year + 1).isoformat()
+                       if not (today.month == 2 and today.day == 29) else today.replace(year=today.year + 1, day=28).isoformat())
+            cal.setdefault("by", "ATT")
+            meta["calibration"] = cal
+            self._save_meta()
         used = None
         if body.get("part_id"):
             used = self.update_spare({"part_id": body["part_id"], "delta": -1})
@@ -701,6 +783,8 @@ def make_handler(app):
                     return self._send(200, app.spares())
                 if url.path == "/api/et":
                     return self._send(200, app.et_report())
+                if url.path == "/api/settings":
+                    return self._send(200, app.settings())
                 if url.path == "/api/vibration":
                     mid = q.get("machine_id", [""])[0]
                     app.profile_of(mid)
@@ -738,6 +822,10 @@ def make_handler(app):
                                                                   b.get("note", "")))
                     if act == "end":
                         return self._send(200, app.live.end(b.get("session_id", ""), b.get("note", "")))
+                if url.path == "/api/settings/machine":
+                    return self._send(200, app.update_machine(json.loads(text)))
+                if url.path == "/api/settings/contacts":
+                    return self._send(200, app.update_contacts(json.loads(text)))
                 if url.path == "/api/et/points":
                     return self._send(200, app.add_et_points(json.loads(text)))
                 if url.path == "/api/et/boards":
