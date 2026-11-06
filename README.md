@@ -36,7 +36,7 @@ python -m faultdetect serve --host 0.0.0.0 --data samples
 
 ## 電測假點分析
 
-上傳不良點紀錄（「上傳分析 → 即時故障診斷」或 `python -m faultdetect analyze samples/et_points.csv`），會自動判斷問題出在哪裡：
+上傳不良點紀錄（「上傳分析 → 即時故障診斷」或 `python -m faultdetect analyze samples/et_points_sample.csv`），會自動判斷問題出在哪裡：
 
 | 判斷結果 | 代表的問題 |
 |---|---|
@@ -47,6 +47,9 @@ python -m faultdetect serve --host 0.0.0.0 --data samples
 | 分散在很多針、沒有固定位置 | 針頭普遍髒污，或板面污染 |
 
 CSV 欄位：`timestamp, machine_id, fixture_id, board_id, point, x, y, fail_type, retest`（retest=pass 代表假點）
+
+**現場登錄（iPad「📍 假點」頁）**：選電測機台和治具，點選假點在治具上的位置（5×4 格），輸入針號後送出；每批結束再登錄測試片數。
+資料存在 `<資料目錄>/et_points.csv`，頁面下方會即時顯示分析結果、各治具假點排行和位置分布圖。
 
 ## 3D 機構模型與振動頻譜
 

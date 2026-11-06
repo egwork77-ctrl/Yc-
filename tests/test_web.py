@@ -73,6 +73,21 @@ class WebTest(unittest.TestCase):
         ids = [f["id"] for f in self.get("/api/faults?profile=et_precise")]
         self.assertIn("et_press_no_move", ids)
 
+    def test_et_point_logging(self):
+        for _ in range(6):
+            self.post("/api/et/points", {"machine_id": "ET6", "fixture_id": "FX-T", "pins": "456, 1203",
+                                         "x": 150, "y": 120})
+        self.post("/api/et/boards", {"machine_id": "ET6", "fixture_id": "FX-T", "count": 40})
+        rep = self.get("/api/et")
+        self.assertIn("FX-T", rep["fixtures"])
+        e = next(x for x in rep["pins"] if x["fixture_id"] == "FX-T")
+        self.assertEqual(e["top"][0], ["P-456", 6])
+        m = next(x for x in rep["machines"] if x["machine_id"] == "ET6")
+        self.assertIn("repeat_pin", {f["symptom"] for f in m["findings"]})
+        self.assertEqual(m["diagnosis"][0]["id"], "et_pins")       # 只有固定針位重複時也要給建議
+        with self.assertRaises(urllib.error.HTTPError):
+            self.post("/api/et/points", {"machine_id": "D83", "fixture_id": "X", "pins": "1"})
+
     def test_faults(self):
         ids = [f["id"] for f in self.get("/api/faults?profile=fusion22")]
         self.assertIn("light_channel", ids)

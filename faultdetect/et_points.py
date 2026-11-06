@@ -58,23 +58,27 @@ def analyze(rows):
     for mid, rs in by_m.items():
         for fx in {r.get("fixture_id") for r in rs}:
             sub = [r for r in rs if r.get("fixture_id") == fx]
-            boards = len({r["board_id"] for r in sub}) or 1
-            rate[(mid, fx)] = (sum(1 for r in sub if (r.get("retest") or "").lower() == "pass" and r.get("point")) / boards, boards)
-    high = {k for k, (v, n) in rate.items() if v > RULES["false_per_board"]["warn"] and n >= 10}
+            boards = len({r["board_id"] for r in sub if r.get("board_id")})
+            n_false = sum(1 for r in sub if (r.get("retest") or "").lower() == "pass" and r.get("point"))
+            rate[(mid, fx)] = (n_false / boards if boards else None, boards)
+    high = {k for k, (v, n) in rate.items() if v is not None and v > RULES["false_per_board"]["warn"] and n >= 10}
 
     out = {}
     for mid, rs in by_m.items():
         fs = []
-        boards = len({r["board_id"] for r in rs}) or 1
+        boards = len({r["board_id"] for r in rs if r.get("board_id")})
         false = [r for r in rs if r.get("point") and (r.get("retest") or "").lower() == "pass"]
         real = [r for r in rs if r.get("point") and (r.get("retest") or "").lower() != "pass"]
-        v = len(false) / boards
-        if (lv := _level(v, RULES["false_per_board"])):
+        v = len(false) / boards if boards else None
+        if v is None and false:
+            fs.append(Finding(mid, "et_points", "no_board_count", "info",
+                              f"已登錄 {len(false)} 個假點,但沒有測試片數 → 請登錄片數才能算假點率", len(false)))
+        elif v is not None and (lv := _level(v, RULES["false_per_board"])):
             fs.append(Finding(mid, "et_points", "false_fail_pct_high", lv,
                               f"每片平均假點 {v:.2f} 點({len(false)} 點 / {boards} 片,真不良 {len(real)} 點)", v))
         for fx in sorted({r.get("fixture_id") for r in false}):
             fx_false = [r for r in false if r.get("fixture_id") == fx]
-            fx_boards = rate[(mid, fx)][1]
+            fx_boards = rate.get((mid, fx), (None, 0))[1]
             pins = Counter(r["point"] for r in fx_false)
             reps = [(p, n) for p, n in pins.most_common(8)
                     if n >= max(RULES["repeat_min"], RULES["repeat_share"] * fx_boards)]

@@ -5,7 +5,7 @@
       "category": "電測治具(針床)",
       "name": "針床假點完整排除 SOP",
       "symptoms": {
-        "repeat_pin": 2,
+        "repeat_pin": 4,
         "spread_false": 2,
         "fixture_wide": 2,
         "false_fail_pct_high": 1
@@ -41,7 +41,7 @@
         "contact_fail_pts_high": 3,
         "contact_fail_pts_rising": 2,
         "false_fail_pct_high": 2,
-        "repeat_pin": 3,
+        "repeat_pin": 8,
         "spread_false": 2
       },
       "steps": [

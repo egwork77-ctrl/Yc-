@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import detector, diagnosis, engine, predict, vibration
+from . import detector, diagnosis, engine, et_points, predict, vibration
 from .live import Live, LogWatcher
 
 STATIC_DIR = Path(__file__).with_name("static")
@@ -75,6 +75,9 @@ button.ok{background:var(--green)}button.no{background:var(--amber)}button.ghost
 .evgrid button:active{background:var(--blue);color:#fff}.evgrid button b{display:block;font-size:22px;color:var(--blue)}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 18px;border-radius:999px;z-index:9}
 @media print{nav,.noprint{display:none}main{padding:0}.card{box-shadow:none;border:1px solid #ccc;break-inside:avoid}}
+.fxmap{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:420px;aspect-ratio:5/4}
+.fxmap button{min-height:0;padding:0;border-radius:6px;background:var(--line);color:var(--fg);font-size:13px}
+.fxmap button.sel{background:var(--blue);color:#fff}.seg button{flex:1}.seg button.ghost{opacity:.8}
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>button{flex:1;min-width:150px}
 .step{font-size:24px;line-height:1.5;padding:24px 4px}
 textarea,input,select{width:100%;font-size:17px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
@@ -84,7 +87,7 @@ nav{overflow-x:auto}nav a{flex:1 0 76px;text-align:center;padding:12px 0;color:v
 ul{padding-left:20px}li{margin:4px 0}table{border-collapse:collapse;width:100%}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left;font-size:15px}
 </style></head><body>
 <header id="title">AOI 現場排除</header><main id="view"></main>
-<nav><a href="#" data-v="overview">📊 總覽</a><a href="#" data-v="live">▶️ 監看</a><a href="#" data-v="inspect">📋 點檢</a><a href="#" data-v="parts">📦 備料</a><a href="#" data-v="pick">🔧 排除故障</a><a href="#" data-v="records">📝 紀錄</a><a href="#" data-v="upload">📤 上傳分析</a></nav>
+<nav><a href="#" data-v="overview">📊 總覽</a><a href="#" data-v="live">▶️ 監看</a><a href="#" data-v="inspect">📋 點檢</a><a href="#" data-v="pins">📍 假點</a><a href="#" data-v="parts">📦 備料</a><a href="#" data-v="pick">🔧 排除故障</a><a href="#" data-v="records">📝 紀錄</a><a href="#" data-v="upload">📤 上傳分析</a></nav>
 <script>
 const $=s=>document.querySelector(s), V=$('#view');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -159,7 +162,7 @@ async function report(sid){const d=await api('/api/live/report?session_id='+sid)
  <div class="card"><h3>完整記錄</h3><ul>${d.events.slice().reverse().map(e=>`<li>${esc(e.time.slice(11,16))} ${e.source==='log'?'🤖':'👆'} ${esc(e.event==='note'?'📝':(d.counts.find(c=>c.event===e.event)||{name:e.event}).name)} ${esc(e.note)}</li>`).join('')}</ul></div>
  <div class="row noprint"><button onclick="print()">🖨 列印 / 存 PDF</button><button class="ghost" onclick="go('records')">看所有紀錄</button></div>`;}
 function go(v,...a){cur=v;if(m3d){m3d.dispose();m3d=null;}nav(v==='machine'?'overview':v==='report'?'records':['faults','step','end'].includes(v)?'pick':v);window.scrollTo(0,0);
- ({overview,machine,live,report,inspect,parts,pick,faults,step,end,records,upload})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
+ ({overview,machine,live,report,inspect,pins,parts,pick,faults,step,end,records,upload})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
 async function load(){S.ov=await api('/api/overview');autoRefresh(S.ov.refresh||60);return S.ov;}
 
 async function overview(){V.innerHTML='<p class="muted">載入中…</p>';const ov=await load();
@@ -230,6 +233,44 @@ async function sendInspect(){const values={};document.querySelectorAll('#form in
  <ul>${r.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>${r.warnings.length?`<button onclick="go('faults','${esc($('#msel').value)}')">🔧 開始排除故障</button>`:''}</div>`;
  document.querySelectorAll('#form input[data-k]').forEach(i=>i.value='');window.scrollTo(0,document.body.scrollHeight);}
  catch(e){$('#res').innerHTML=`<div class="card alarm">${esc(e.message)}</div>`;}}
+
+let pinCell=null,pinSide='下治具',pinType='open';
+async function pins(){const ov=S.ov||await load();const et=ov.machines.filter(m=>m.profile==='et_precise');const rep=await api('/api/et');
+ const segBtns=(arr,cur,fn)=>arr.map(([v,t])=>`<button class="${v===cur?'':'ghost'}" onclick="${fn}('${v}')">${t}</button>`).join('');
+ V.innerHTML=`<div class="card"><h2>📍 電測假點登錄</h2><p class="muted">重測會過的點(假點)每次發生就登錄。累積後系統會告訴你是哪支針、哪副治具、還是哪台機台的問題。</p>
+ <select id="pm">${et.map(m=>`<option value="${esc(m.machine_id)}">${esc(m.name)}(${esc(m.model)})${m.level==='down'?' 🛑停機':''}</option>`).join('')}</select><br><br>
+ <input id="pfx" list="pfxl" placeholder="治具編號(例:料號或治具標籤)"><datalist id="pfxl">${rep.fixtures.map(f=>`<option value="${esc(f)}">`).join('')}</datalist><br><br>
+ <div class="row seg" id="pside">${segBtns([['上治具','上治具'],['下治具','下治具']],pinSide,'setSide')}</div>
+ <p class="muted">點選假點在治具上的位置(可略過) <button class="ghost" style="min-height:0;padding:4px 10px;font-size:14px" onclick="setCell(null)">不指定位置</button></p><div class="fxmap" id="pmap">${Array.from({length:20},(_,k)=>{const i=k%5,j=3-Math.floor(k/5);
+  return `<button data-c="${i},${j}" class="${pinCell==i+','+j?'sel':''}" onclick="setCell('${i},${j}')">${['左','','中','','右'][i]}${['下','','','上'][j]}</button>`}).join('')}</div><br>
+ <input id="ppins" inputmode="numeric" placeholder="針號(多支用逗號分開,例:456, 1203)"><br><br>
+ <div class="row seg" id="ptype">${segBtns([['open','Open 斷路'],['short','Short 短路']],pinType,'setType')}</div><br>
+ <div class="row"><button class="ok" onclick="sendPins('pass')">登錄假點(重測通過)</button><button class="no" onclick="sendPins('fail')">登錄真不良</button></div>
+ <h3>測試片數</h3><p class="muted">每批或每班結束時登錄這副治具測了幾片,才能算假點率。</p>
+ <div class="row"><input id="pcnt" type="number" inputmode="numeric" placeholder="片數" style="flex:2"><button style="flex:1" onclick="sendBoards()">登錄片數</button></div></div>
+ <div id="pres"></div>`;
+ try{const l=JSON.parse(localStorage.getItem('pinlast')||'{}');if(l.m)$('#pm').value=l.m;if(l.f)$('#pfx').value=l.f;}catch(e){}
+ renderPins(rep);}
+function setSide(v){pinSide=v;document.querySelectorAll('#pside button').forEach(b=>b.className=b.textContent===v?'':'ghost');}
+function setType(v){pinType=v;document.querySelectorAll('#ptype button').forEach((b,i)=>b.className=(i===0)===(v==='open')?'':'ghost');}
+function setCell(c){pinCell=c;document.querySelectorAll('#pmap button').forEach(b=>b.className=b.dataset.c===pinCell?'sel':'');}
+function pinBody(){const m=$('#pm').value,f=$('#pfx').value.trim();try{localStorage.setItem('pinlast',JSON.stringify({m,f}));}catch(e){}return {machine_id:m,fixture_id:f};}
+async function sendPins(rt){const b=pinBody();let x='',y='';if(pinCell){const [i,j]=pinCell.split(',').map(Number);x=i*100+50;y=j*80+40;}
+ try{const r=await api('/api/et/points',{method:'POST',body:JSON.stringify({...b,pins:$('#ppins').value,retest:rt,fail_type:pinType,side:pinSide,x,y})});
+  toast(`已登錄 ${r.saved} 點`);$('#ppins').value='';renderPins(await api('/api/et'));}catch(e){toast(e.message);}}
+async function sendBoards(){try{const r=await api('/api/et/boards',{method:'POST',body:JSON.stringify({...pinBody(),count:$('#pcnt').value})});
+ toast(`已登錄 ${r.saved} 片`);$('#pcnt').value='';renderPins(await api('/api/et'));}catch(e){toast(e.message);}}
+function heat(cells){const mx=Math.max(1,...Object.values(cells));let h='<div class="fxmap" style="max-width:260px">';
+ for(let j=3;j>=0;j--)for(let i=0;i<5;i++){const n=cells[i+','+j]||0;h+=`<button style="background:rgba(220,38,38,${n/mx*0.85+0.05});color:${n/mx>0.5?'#fff':'var(--fg)'}">${n||''}</button>`;}
+ return h+'</div>';}
+function renderPins(rep){const el=$('#pres');if(!el)return;
+ if(!rep.machines.length){el.innerHTML='<div class="card"><p class="muted">尚無登錄資料</p></div>';return;}
+ el.innerHTML=rep.machines.filter(m=>m.findings.length).map(m=>`<div class="card ${m.status}"><h2>${esc(m.machine_id)} 分析結果</h2>
+ <ul>${m.findings.map(f=>`<li>${LV[f.level]||''} ${esc(f.message)}</li>`).join('')}</ul>
+ ${m.diagnosis.length?`<p>💡 最可能:<b>${esc(m.diagnosis[0].name)}</b></p><details><summary>看排除步驟與改善建議</summary>${sugg(m.diagnosis.slice(0,1),'')}</details>`:''}</div>`).join('')+
+ `<div class="card"><h3>各治具假點排行(前 6)</h3>${rep.pins.slice(0,6).map(e=>`<div style="margin:10px 0"><b>${esc(e.machine_id)} · 治具 ${esc(e.fixture_id)}</b> — 假點 ${e.count} 點
+ <div class="row" style="align-items:flex-start;margin-top:6px"><table style="flex:1">${e.top.slice(0,5).map(([p,n])=>`<tr><td>${esc(p)}</td><td>${n} 次</td></tr>`).join('')}</table>
+ ${Object.keys(e.cells).length?`<div style="flex:1">${heat(e.cells)}<div class="muted">治具位置分布</div></div>`:''}</div></div>`).join('')||'<p class="muted">尚無假點</p>'}</div>`;}
 
 async function parts(){const ov=S.ov||await load();
  const all=ov.machines.flatMap(m=>m.parts.map(p=>({...p,mname:m.name}))).filter(p=>p.due_days!=null)
@@ -486,6 +527,68 @@ class App:
         return e
 
     # ---- 保養登錄 ----
+    # ---- 電測假點登錄 ----
+    ET_FIELDS = ["timestamp", "machine_id", "fixture_id", "board_id", "point", "x", "y", "side", "fail_type",
+                 "retest", "note"]
+
+    @property
+    def et_file(self):
+        return self.dir / "et_points.csv"
+
+    def _et_check(self, body):
+        mid, fx = (body.get("machine_id") or "").strip(), (body.get("fixture_id") or "").strip()[:40]
+        if self.profile_of(mid) != "et_precise":
+            raise ValueError(f"{mid} 不是電測機台")
+        if not fx:
+            raise ValueError("請輸入治具編號")
+        return mid, fx
+
+    def add_et_points(self, body):
+        mid, fx = self._et_check(body)
+        pins = [p for p in str(body.get("pins", "")).replace(",", " ").replace("、", " ").split() if p][:50]
+        if not pins:
+            raise ValueError("請輸入針號")
+        now = datetime.now().isoformat(timespec="minutes")
+        rows = [{"timestamp": now, "machine_id": mid, "fixture_id": fx, "board_id": "",
+                 "point": p if p.upper().startswith("P-") else f"P-{p}", "x": body.get("x", ""), "y": body.get("y", ""),
+                 "side": body.get("side", ""), "fail_type": body.get("fail_type", "open"),
+                 "retest": "pass" if body.get("retest", "pass") == "pass" else "fail", "note": str(body.get("note", ""))[:200]}
+                for p in pins]
+        for r in rows:
+            append_csv(self.et_file, r)
+        return {"saved": len(rows)}
+
+    def add_et_boards(self, body):
+        mid, fx = self._et_check(body)
+        n = int(_float(body.get("count")) or 0)
+        if not 1 <= n <= 5000:
+            raise ValueError("片數需在 1–5000")
+        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        for i in range(n):
+            append_csv(self.et_file, {"timestamp": datetime.now().isoformat(timespec="minutes"), "machine_id": mid,
+                                      "fixture_id": fx, "board_id": f"{fx}-{stamp}-{i:04d}", "point": ""})
+        return {"saved": n}
+
+    def et_report(self):
+        if not self.et_file.exists():
+            return {"machines": [], "fixtures": [], "pins": []}
+        rows = detector.read_rows(self.et_file)
+        report = engine.run(self.et_file) if rows else []
+        false = [r for r in rows if r.get("point") and r.get("retest") == "pass"]
+        pins = {}
+        for r in false:
+            k = (r["machine_id"], r["fixture_id"])
+            e = pins.setdefault(k, {"machine_id": k[0], "fixture_id": k[1], "count": 0, "top": {}, "cells": {}})
+            e["count"] += 1
+            e["top"][r["point"]] = e["top"].get(r["point"], 0) + 1
+            if r.get("x") and r.get("y"):
+                c = f"{int(float(r['x']) // 100)},{int(float(r['y']) // 80)}"
+                e["cells"][c] = e["cells"].get(c, 0) + 1
+        for e in pins.values():
+            e["top"] = sorted(e["top"].items(), key=lambda kv: -kv[1])[:10]
+        return {"machines": report, "fixtures": sorted({r["fixture_id"] for r in rows if r.get("fixture_id")}),
+                "pins": sorted(pins.values(), key=lambda e: -e["count"])}
+
     def add_maintenance(self, body):
         mid, item = body.get("machine_id", ""), body.get("item", "")
         m, hist, log = self.machine(mid)
@@ -588,6 +691,8 @@ def make_handler(app):
                     return self._send(200, app.form(q.get("machine_id", [""])[0]))
                 if url.path == "/api/spares":
                     return self._send(200, app.spares())
+                if url.path == "/api/et":
+                    return self._send(200, app.et_report())
                 if url.path == "/api/vibration":
                     mid = q.get("machine_id", [""])[0]
                     app.profile_of(mid)
@@ -625,6 +730,10 @@ def make_handler(app):
                                                                   b.get("note", "")))
                     if act == "end":
                         return self._send(200, app.live.end(b.get("session_id", ""), b.get("note", "")))
+                if url.path == "/api/et/points":
+                    return self._send(200, app.add_et_points(json.loads(text)))
+                if url.path == "/api/et/boards":
+                    return self._send(200, app.add_et_boards(json.loads(text)))
                 if url.path == "/api/inspection":
                     return self._send(200, app.add_inspection(json.loads(text)))
                 if url.path == "/api/spares":
