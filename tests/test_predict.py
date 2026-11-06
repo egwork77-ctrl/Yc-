@@ -64,3 +64,12 @@ class PredictTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TwoSidedLimitTest(unittest.TestCase):
+    def test_falling_pressure_uses_min_limit(self):
+        from faultdetect.predict import _limits
+        rule = {"min_warn": 5.5, "min_alarm": 5.0, "max_warn": 7.0}
+        self.assertEqual(_limits(rule, -0.1, 6.0)[0], -1)
+        self.assertEqual(_limits(rule, 0.1, 6.0)[0], 1)
+        self.assertEqual(_limits(rule, 0.0, 5.6)[0], -1)   # 趨勢不明時看較接近的一邊

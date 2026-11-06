@@ -128,17 +128,17 @@ def write_maintenance_log(path):
         w.writerows(rows)
 
 
-D8 = ("DIS8-1", "DIS8-2", "DIS8-3")
+D8 = ("D83", "D85", "D88")
 D8_FIELDS = ["timestamp", "machine_id", "lamp_intensity", "focus_score", "vacuum_kpa", "air_pressure",
              "registration_score", "stage_error_um", "temperature", "scan_time",
              "run_hours", "lamp_hours", "panel_count"]
 
 
 def write_d8_history(path, days=30, seed=8):
-    """3 台 Discovery 8:DIS8-1 真空緩降、DIS8-2 燈管衰減、DIS8-3 健康。"""
+    """3 台 Discovery 8:D83 真空緩降、D85 燈管衰減、D88 健康。"""
     rnd = random.Random(seed)
     start = datetime(2026, 1, 1, 0, 0)
-    init = {"DIS8-1": (31000, 900), "DIS8-2": (42000, 1380), "DIS8-3": (27000, 300)}
+    init = {"D83": (31000, 900), "D85": (42000, 1380), "D88": (27000, 300)}
     with open(path, "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=D8_FIELDS)
         w.writeheader()
@@ -149,9 +149,9 @@ def write_d8_history(path, days=30, seed=8):
                          vacuum_kpa=78 + rnd.gauss(0, 0.6), air_pressure=6.2 + rnd.gauss(0, 0.05),
                          registration_score=0.95 + rnd.gauss(0, 0.004), stage_error_um=2 + rnd.gauss(0, 0.2),
                          temperature=22 + rnd.gauss(0, 0.2), scan_time=42 + rnd.gauss(0, 0.8))
-                if mid == "DIS8-1":
+                if mid == "D83":
                     v["vacuum_kpa"] -= d * 0.55
-                elif mid == "DIS8-2":
+                elif mid == "D85":
                     v["lamp_intensity"] -= d * 0.3
                 v["run_hours"] = init[mid][0] + d * 20
                 v["lamp_hours"] = init[mid][1] + d * 20
@@ -167,8 +167,8 @@ def write_d8_log(path):
                  (mid, "照明與影像校正(校正片)", "2026-01-20", ""), (mid, "空壓過濾器排水 / 濾芯檢查", "2026-01-15", ""),
                  (mid, "散熱風扇濾網清潔", "2025-12-15", ""), (mid, "XY 平台導軌潤滑", "2025-12-20", ""),
                  (mid, "真空幫浦保養", "2025-11-01", "")]
-    rows += [("DIS8-1", "照明燈管更換", "2025-11-01", "400"), ("DIS8-2", "照明燈管更換", "2025-09-01", "600"),
-             ("DIS8-3", "照明燈管更換", "2026-01-15", "0")]
+    rows += [("D83", "照明燈管更換", "2025-11-01", "400"), ("D85", "照明燈管更換", "2025-09-01", "600"),
+             ("D88", "照明燈管更換", "2026-01-15", "0")]
     with open(path, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["date", "machine_id", "item", "lamp_hours"])
@@ -176,7 +176,7 @@ def write_d8_log(path):
 
 
 def write_d8_results(path, panels=200, seed=9):
-    """DIS8-1 正常、DIS8-2 同座標重複斷路(底片缺陷)、DIS8-3 短路偏多(蝕刻不足)。"""
+    """D83 正常、D85 同座標重複斷路(底片缺陷)、D88 短路偏多(蝕刻不足)。"""
     rnd = random.Random(seed)
     start = datetime(2026, 1, 1, 8, 0)
     with open(path, "w", encoding="utf-8", newline="") as f:
@@ -192,9 +192,9 @@ def write_d8_results(path, panels=200, seed=9):
                                   f"X{rnd.randint(1, 500)}Y{rnd.randint(1, 600)}", "false"))
                 if rnd.random() < 0.01:
                     calls.append((rnd.choice(["open", "short"]), f"X{rnd.randint(1, 500)}Y{rnd.randint(1, 600)}", "real"))
-                if mid == "DIS8-2" and rnd.random() < 0.06:
+                if mid == "D85" and rnd.random() < 0.06:
                     calls.append(("open", "X212Y348", "real"))
-                if mid == "DIS8-3" and rnd.random() < 0.08:
+                if mid == "D88" and rnd.random() < 0.08:
                     calls.append(("short", f"X{rnd.randint(1, 500)}Y{rnd.randint(1, 600)}", "real"))
                 base = {"timestamp": ts, "machine_id": mid, "board_id": f"{mid}-{b:04d}"}
                 if not calls:
@@ -203,14 +203,14 @@ def write_d8_results(path, panels=200, seed=9):
                     w.writerow({**base, "result": "NG", "defect_type": dtype, "location": loc, "verdict": verdict})
 
 
-F22 = ("FUS22-1", "FUS22-2")
+F22 = ("F1", "F2")
 F22_FIELDS = ["timestamp", "machine_id", "light_ch1", "light_ch2", "light_ch3", "focus_score", "vacuum_kpa",
               "air_pressure", "registration_score", "stage_error_um", "temperature", "sides_per_hour",
               "run_hours", "light_hours", "panel_count"]
 
 
 def write_f22_history(path, days=30, seed=22):
-    """2 台 Fusion 22:FUS22-1 照明通道 2 衰減、FUS22-2 XY 定位誤差上升 + 產能下滑。"""
+    """2 台 Fusion 22:F1 照明通道 2 衰減、F2 XY 定位誤差上升 + 產能下滑。"""
     rnd = random.Random(seed)
     start = datetime(2026, 1, 1, 0, 0)
     with open(path, "w", encoding="utf-8", newline="") as f:
@@ -224,7 +224,7 @@ def write_f22_history(path, days=30, seed=22):
                          vacuum_kpa=80 + rnd.gauss(0, 0.6), air_pressure=6.2 + rnd.gauss(0, 0.05),
                          registration_score=0.96 + rnd.gauss(0, 0.004), stage_error_um=1.5 + rnd.gauss(0, 0.15),
                          temperature=22 + rnd.gauss(0, 0.2), sides_per_hour=240 + rnd.gauss(0, 3))
-                if mid == "FUS22-1":
+                if mid == "F1":
                     v["light_ch2"] -= d * 0.32
                 else:
                     v["stage_error_um"] += d * 0.11
@@ -289,6 +289,46 @@ def write_vrs_log(path):
             w.writerow(("2025-03-01", mid, "照明光源更換(依原廠壽命)", "0"))
 
 
-SAMPLES = {"vrs-history": write_vrs_history, "vrs-log": write_vrs_log, "f22-history": write_f22_history, "f22-log": write_f22_log,
+ET = tuple(f"ET{i}" for i in range(1, 7))
+ET_FIELDS = ["timestamp", "machine_id", "false_fail_pct", "contact_fail_pts", "air_pressure", "selftest_fail_pins",
+             "cycle_time_s", "run_hours", "press_cycles"]
+
+
+def write_et_history(path, days=30, seed=77):
+    """6 台電測:ET1 測試針磨耗(接觸不良上升)、ET5 氣壓下降,其餘正常。"""
+    rnd = random.Random(seed)
+    start = datetime(2026, 1, 1, 0, 0)
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=ET_FIELDS)
+        w.writeheader()
+        for n, mid in enumerate(ET):
+            for i in range(days * 4):
+                d = i / 4
+                v = dict(false_fail_pct=1.0 + abs(rnd.gauss(0, 0.2)), contact_fail_pts=1.5 + abs(rnd.gauss(0, 0.3)),
+                         air_pressure=6.2 + rnd.gauss(0, 0.04), selftest_fail_pins=0, cycle_time_s=15 + rnd.gauss(0, 0.4))
+                if mid == "ET1":
+                    v["contact_fail_pts"] += d * 0.12
+                    v["false_fail_pct"] += d * 0.06
+                elif mid == "ET5":
+                    v["air_pressure"] -= d * 0.025
+                v["run_hours"] = 30000 + n * 2000 + d * 20
+                v["press_cycles"] = 200000 + n * 50000 + int(d * 2400)
+                w.writerow({"timestamp": (start + timedelta(hours=6 * i)).isoformat(timespec="minutes"),
+                            "machine_id": mid, **{k: round(x, 3) for k, x in v.items()}})
+
+
+def write_et_log(path):
+    items = [("治具 / 針盤清潔", "2026-01-28"), ("系統自我測試(Self-Test)", "2026-01-27"),
+             ("空壓過濾器排水 / 濾芯檢查", "2026-01-15"), ("伸縮護套 / 導柱外觀檢查", "2025-12-01"),
+             ("外部校正(ATT)", "2024-03-09"), ("導柱 / 軸承潤滑", "2026-01-05")]
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["date", "machine_id", "item", "press_cycles"])
+        for n, mid in enumerate(ET):
+            w.writerows([(d, mid, it, "") for it, d in items])
+            w.writerow(("2025-06-01", mid, "測試針 / 彈簧針更換", str(200000 + n * 50000 - 330000 + n * 20000)))
+
+
+SAMPLES = {"et-history": write_et_history, "et-log": write_et_log, "vrs-history": write_vrs_history, "vrs-log": write_vrs_log, "f22-history": write_f22_history, "f22-log": write_f22_log,
            "d8-history": write_d8_history, "d8-log": write_d8_log, "d8-results": write_d8_results,
            "aoi-history": write_aoi_history, "maintenance-log": write_maintenance_log, "generic": write_sample, "aoi": write_aoi_sensors, "aoi-results": write_aoi_results}

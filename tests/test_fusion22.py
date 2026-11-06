@@ -23,9 +23,9 @@ class Fusion22Test(unittest.TestCase):
             write_f22_history(h)
             write_f22_log(l)
             r = {m["machine_id"]: m for m in predict.run(h, "fusion22", l)}
-        ch2 = next(p for p in r["FUS22-1"]["predictions"] if p["sensor"] == "light_ch2")
+        ch2 = next(p for p in r["F1"]["predictions"] if p["sensor"] == "light_ch2")
         self.assertEqual(ch2["faults"][0]["name"], "照明光源衰減(多影像其中一組)")
-        stage = next(p for p in r["FUS22-2"]["predictions"] if p["sensor"] == "stage_error_um")
+        stage = next(p for p in r["F2"]["predictions"] if p["sensor"] == "stage_error_um")
         self.assertLess(stage["due_days"], 7)
 
 

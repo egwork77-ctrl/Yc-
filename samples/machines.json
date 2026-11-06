@@ -1,5 +1,5 @@
 {
-  "_說明": "機台清單、資料來源與聯絡窗口。history/log 路徑相對於此資料夾。",
+  "_說明": "機台清單、資料來源與聯絡窗口。history/log 路徑相對於此資料夾。銘牌資料:model 型號、asset_no 設備No、card 卡號、installed 進廠日期、serial 序號、calibration 外部校正。",
   "sources": [
     {
       "profile": "discovery8",
@@ -15,74 +15,166 @@
       "profile": "vrs",
       "history": "vrs_history.csv",
       "log": "vrs_maintenance_log.csv"
+    },
+    {
+      "profile": "et_precise",
+      "history": "et_history.csv",
+      "log": "et_maintenance_log.csv"
     }
   ],
   "machines": [
     {
-      "id": "DIS8-1",
-      "name": "Discovery 8 #1",
-      "model": "Orbotech Discovery 8",
-      "profile": "discovery8"
+      "id": "D83",
+      "name": "D83",
+      "model": "Orbotech Discovery 8800",
+      "profile": "discovery8",
+      "asset_no": "PI093042",
+      "card": "M409D83",
+      "installed": "2009-09",
+      "dept": "生產三課"
     },
     {
-      "id": "DIS8-2",
-      "name": "Discovery 8 #2",
-      "model": "Orbotech Discovery 8",
-      "profile": "discovery8"
+      "id": "D85",
+      "name": "D85",
+      "model": "Orbotech Discovery 8800",
+      "profile": "discovery8",
+      "asset_no": "PI093041",
+      "card": "M409D85",
+      "installed": "2009-09",
+      "dept": "生產三課"
     },
     {
-      "id": "DIS8-3",
-      "name": "Discovery 8 #3",
-      "model": "Orbotech Discovery 8",
-      "profile": "discovery8"
+      "id": "D88",
+      "name": "D88",
+      "model": "Orbotech Discovery 9000 L",
+      "profile": "discovery8",
+      "asset_no": "PI122043",
+      "card": "M409D88",
+      "installed": "2012-08",
+      "dept": "生產三課"
     },
     {
-      "id": "FUS22-1",
-      "name": "Fusion 22 #1",
-      "model": "KLA Fusion 22",
-      "profile": "fusion22"
+      "id": "F1",
+      "name": "F1",
+      "model": "Orbotech Fusion 22",
+      "profile": "fusion22",
+      "asset_no": "FU12200?1(待確認)",
+      "card": "M409F01",
+      "installed": "2012-09-02",
+      "dept": "生產三課"
     },
     {
-      "id": "FUS22-2",
-      "name": "Fusion 22 #2",
-      "model": "KLA Fusion 22",
-      "profile": "fusion22"
+      "id": "F2",
+      "name": "F2",
+      "model": "Orbotech Fusion 22",
+      "profile": "fusion22",
+      "asset_no": "FU103004",
+      "card": "M409F02",
+      "installed": "2012-10-02",
+      "dept": "生產三課"
     },
     {
       "id": "VRS-1",
       "name": "VRS #1",
-      "model": "Orbotech VRS",
-      "profile": "vrs"
+      "model": "Orbotech VeriSmart",
+      "profile": "vrs",
+      "note": "現場編號(如 ATT VRS 19)待確認"
     },
     {
       "id": "VRS-2",
       "name": "VRS #2",
-      "model": "Orbotech VRS",
-      "profile": "vrs"
+      "model": "Orbotech VeriSmart",
+      "profile": "vrs",
+      "note": "現場編號(如 ATT VRS 19)待確認"
     },
     {
       "id": "VRS-3",
       "name": "VRS #3",
-      "model": "Orbotech VRS",
-      "profile": "vrs"
+      "model": "Orbotech VeriSmart",
+      "profile": "vrs",
+      "note": "現場編號(如 ATT VRS 19)待確認"
     },
     {
       "id": "VRS-4",
       "name": "VRS #4",
-      "model": "Orbotech VRS",
-      "profile": "vrs"
+      "model": "Orbotech VeriSmart",
+      "profile": "vrs",
+      "note": "現場編號(如 ATT VRS 19)待確認"
     },
     {
       "id": "VRS-5",
       "name": "VRS #5",
-      "model": "Orbotech VRS",
-      "profile": "vrs"
+      "model": "Orbotech VeriSmart",
+      "profile": "vrs",
+      "note": "現場編號(如 ATT VRS 19)待確認"
     },
     {
       "id": "VRS-6",
       "name": "VRS #6",
-      "model": "Orbotech VRS",
-      "profile": "vrs"
+      "model": "Orbotech VeriSmart",
+      "profile": "vrs",
+      "note": "現場編號(如 ATT VRS 19)待確認"
+    },
+    {
+      "id": "ET1",
+      "model": "Mania PRECISE 200(2K)",
+      "serial": "34B078",
+      "asset_no": "TE-02",
+      "card": "A-088-32-TE-004",
+      "installed": "2005-01-05",
+      "dept": "生產一、二課",
+      "calibration": {
+        "by": "ATT",
+        "last": "2024-03-09",
+        "next": "2025-03-08"
+      },
+      "name": "ET1",
+      "profile": "et_precise"
+    },
+    {
+      "id": "ET2",
+      "model": "Mania PRECISE(待確認)",
+      "name": "ET2",
+      "profile": "et_precise"
+    },
+    {
+      "id": "ET3",
+      "model": "Mania PRECISE(待確認)",
+      "name": "ET3",
+      "profile": "et_precise"
+    },
+    {
+      "id": "ET4",
+      "model": "Mania PRECISE(待確認)",
+      "name": "ET4",
+      "profile": "et_precise"
+    },
+    {
+      "id": "ET5",
+      "model": "Mania PRECISE 400",
+      "serial": "34B057",
+      "asset_no": "TE-0?(待確認)",
+      "card": "A-085-32-TE-002",
+      "installed": "2004-10-22",
+      "dept": "生產一、二課",
+      "calibration": {
+        "by": "ATT",
+        "last": "2024-03-09",
+        "next": "2025-03-08"
+      },
+      "name": "ET5",
+      "profile": "et_precise"
+    },
+    {
+      "id": "ET6",
+      "model": "Mania PRECISE M8 AUTO",
+      "serial": "37B043",
+      "asset_no": "TE-0?(待確認)",
+      "card": "A-127-32-TE-005",
+      "installed": "2007-11-19",
+      "dept": "生產一、二課",
+      "name": "ET6",
+      "profile": "et_precise"
     }
   ],
   "contacts": [

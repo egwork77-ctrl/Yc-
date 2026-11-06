@@ -1,6 +1,6 @@
 /* AOI 機台 3D 機構模型(外型依現場照片估計,內部機構為示意,尺寸單位:公尺,非原廠圖面)。
  *
- * AOI3D.mount(容器, {model:'fusion22'|'discovery'|'vrs', parts:[...], onPick:fn})
+ * AOI3D.mount(容器, {model:'fusion22'|'discovery'|'vrs'|'mania', parts:[...], onPick:fn})
  *   回傳 {setMode('xray'|'solid'|'mech'|'mesh'), toggleAnim(), reset(), select(id), dispose()}
  *
  * 機構以工程分析配色:床台藍、立柱橘、橫樑紫、工作台黃、線軌紅、滾珠螺桿黃、伺服馬達黑。
@@ -173,19 +173,46 @@
   }
 
   // ---------- Orbotech VRS 缺陷複判站:藍色機身 + 傾斜工作台 + 拱型橋架相機 ----------
+  // 真空吸附台圓形吸盤紋路
+  function circleTexture() {
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const g = c.getContext('2d');
+    g.fillStyle = '#111827'; g.fillRect(0, 0, 512, 512);
+    g.strokeStyle = '#4b5563'; g.lineWidth = 3;
+    for (let y = 0; y < 14; y++) for (let x = 0; x < 14; x++) {
+      g.beginPath(); g.arc(18 + x * 36.5 + (y % 2) * 18, 18 + y * 36.5, 15, 0, Math.PI * 2); g.stroke();
+    }
+    const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; return t;
+  }
+
+  // ---------- Orbotech VeriSmart(VRS):灰藍機身 + 傾斜吸盤台 + 後方拱型上蓋 + 左側弧形扶手鍵盤 ----------
   function vrs(b) {
-    const blue = 0x2f6fb8, W = 1.5;
-    b.shell(box(W, 0.72, 1.0, mat(blue, { shell: true })), 0, 0.36, -0.05);                 // 底座
-    b.shell(box(W, 0.06, 0.3, mat(blue, { shell: true })), 0, 0.84, 0.55);                   // 前方扶手台
-    b.add(box(0.26, 0.03, 0.17, mat(0xe5e7eb)), 0.45, 0.885, 0.55);                         // 專用鍵盤
-    for (let i = 0; i < 12; i++) b.add(box(0.035, 0.012, 0.03, mat(0x94a3b8)), 0.365 + (i % 4) * 0.055, 0.905, 0.5 + Math.floor(i / 4) * 0.045);
-    b.monitor(-0.95, 1.2, 0.3);
+    const blue = 0x5d7089, W = 1.4;
+    b.shell(box(W, 0.45, 0.55, mat(blue, { shell: true })), 0, 0.62, 0.15);                 // 台面下機箱
+    for (const [x, z] of [[-0.62, -0.45], [0.62, -0.45], [-0.62, 0.35], [0.62, 0.35]])
+      b.add(box(0.05, 0.42, 0.05, mat(0x374151)), x, 0.21, z);                               // 支腳
+    // 前方弧形扶手台(向左延伸成鍵盤台)
+    b.shell(extrudeProfile(s => { s.moveTo(0.18, 0); s.lineTo(-0.18, 0); s.quadraticCurveTo(-0.2, 0.06, -0.12, 0.07); s.lineTo(0.18, 0.07); s.closePath(); },
+      W + 0.1, mat(blue, { shell: true })), 0, 0.8, 0.52);
+    const wing = new T.Shape();
+    wing.moveTo(0, 0); wing.quadraticCurveTo(-0.35, 0.05, -0.62, 0.35); wing.quadraticCurveTo(-0.5, 0.48, -0.25, 0.36); wing.lineTo(0, 0.3); wing.closePath();
+    const wg = new T.ExtrudeGeometry(wing, { depth: 0.06, bevelEnabled: false }); wg.rotateX(Math.PI / 2);
+    b.shell(new T.Mesh(wg, mat(blue, { shell: true })), -0.55, 0.87, 0.42);
+    b.add(box(0.24, 0.03, 0.17, mat(0xe7e5df)), -0.85, 0.88, 0.62).rotation.y = 0.35;      // 專用鍵盤(左側)
+    for (let i = 0; i < 16; i++) {
+      const k = b.add(box(0.035, 0.012, 0.03, mat([0x94a3b8, 0x16a34a, 0xdc2626, 0xeab308][i % 7 === 0 ? 1 + (i % 3) : 0])),
+        -0.93 + (i % 4) * 0.05, 0.9, 0.57 + Math.floor(i / 4) * 0.035);
+      k.rotation.y = 0.35;
+    }
+    b.add(cyl(0.025, 0.02, mat(0xdc2626)), 0.62, 0.89, 0.55);                                // 緊急停止
+    b.monitor(-1.05, 1.25, 0.15);
     b.signalTower(-0.65, 1.55, -0.55);
     // 傾斜工作台(靠操作員端較低)
     const tilt = 0.44, tg = b.add(new T.Group(), 0, 1.02, -0.02);
     tg.rotation.x = tilt;
     const frame = box(W, 0.06, 1.05, mat(blue, { shell: true })); tg.add(at(frame, 0, -0.06, 0)); b.shells.push(frame);
-    b.m('vacuum_pump', box(1.25, 0.03, 0.9, mat(0x111827, { rough: 0.3 })), 0, -0.015, 0, tg);       // 黑色真空吸附台
+    const plate = box(1.25, 0.03, 0.9, new T.MeshStandardMaterial({ map: circleTexture(), roughness: 0.4 }));
+    b.m('vacuum_pump', plate, 0, -0.015, 0, tg);                                                      // 黑色圓形吸盤真空台
     b.add(box(0.9, 0.006, 0.62, mat(0xd9b48a)), 0, 0.003, 0.02, tg);                                // 待複判的板子
     for (const x of [-0.69, 0.69]) b.m('vrs_gantry', box(0.035, 0.03, 1.0, mat(C.rail)), x, 0.0, 0, tg);
     b.m('vrs_gantry', servo(mat(C.motor)), 0.69, 0.02, -0.58, tg).rotation.y = Math.PI;
@@ -204,8 +231,8 @@
     ring.rotation.x = Math.PI / 2;
     b.m('vrs_light', ring, 0, 0.04, 0.18, cg);
     // 後方上蓋
-    b.shell(extrudeProfile(s => { s.moveTo(0.2, 0); s.lineTo(-0.2, 0); s.quadraticCurveTo(-0.2, 0.22, 0.05, 0.25); s.lineTo(0.2, 0.25); s.closePath(); },
-      W, mat(0x3b82c4, { shell: true })), 0, 1.22, -0.62);
+    b.shell(extrudeProfile(s => { s.moveTo(0.22, 0); s.lineTo(-0.22, 0); s.quadraticCurveTo(-0.24, 0.26, 0.05, 0.28); s.lineTo(0.22, 0.28); s.closePath(); },
+      W + 0.05, mat(0x8592a3, { shell: true })), 0, 1.2, -0.6);                                    // 後方拱型上蓋(VeriSmart 標誌處)
     b.m('vacuum_pump', box(0.35, 0.28, 0.28, mat(0x475569)), 0.4, 0.2, -0.25);
     // 動作:相機在缺陷點之間移動(複判)
     let from = [0, 0], to = [0, 0], t0 = 0;
@@ -217,7 +244,57 @@
     } };
   }
 
-  const MODELS = { fusion22, discovery, vrs };
+  // ---------- Mania / Gardien PRECISE 治具(針床)電測機:上壓頭 + 上下治具疊板 + 導柱伸縮護套 + 藍色前台 ----------
+  function mania(b) {
+    const grey = 0xb9bec5, W = 1.45;
+    b.shell(box(1.25, 0.72, 0.85, mat(0x9aa0a8, { shell: true })), 0, 0.36, -0.05);          // 下機箱
+    // 藍色弧形前台 + 兩個半圓開口(啟動按鈕)
+    const desk = new T.Shape();
+    desk.moveTo(-W / 2 + 0.12, -0.22); desk.lineTo(W / 2 - 0.12, -0.22); desk.quadraticCurveTo(W / 2, -0.22, W / 2, -0.1);
+    desk.lineTo(W / 2, 0.22); desk.lineTo(-W / 2, 0.22); desk.lineTo(-W / 2, -0.1); desk.quadraticCurveTo(-W / 2, -0.22, -W / 2 + 0.12, -0.22);
+    const dg = new T.ExtrudeGeometry(desk, { depth: 0.2, bevelEnabled: false }); dg.rotateX(Math.PI / 2); dg.translate(0, 0.2, 0);
+    b.shell(new T.Mesh(dg, mat(0x2b5aa0, { shell: true })), 0, 0.72, 0.38);
+    for (const x of [-0.42, 0.42]) {
+      const hole = cyl(0.11, 0.02, mat(0x111827), 24); hole.rotation.x = Math.PI / 2; b.add(hole, x, 0.8, 0.611);
+      b.add(box(0.1, 0.05, 0.06, mat(0xeab308)), x, 0.77, 0.58);                              // 雙手啟動按鈕
+    }
+    b.add(cyl(0.03, 0.03, mat(0xdc2626)), 0.6, 0.93, 0.5);                                   // 緊急停止
+    // 下壓板 + 下治具疊板(黃色多層板 + 藍色支撐柱)
+    b.m('et_guide', box(1.2, 0.04, 0.8, mat(0xcbd5e1, { metal: 0.4 })), 0, 0.94, 0);
+    const stack = (y0, dir) => {
+      const g = new T.Group();
+      for (let i = 0; i < 6; i++) g.add(at(box(0.72, 0.012, 0.56, mat(0xe9c46a)), 0, dir * i * 0.028, 0));
+      for (const x of [-0.3, -0.1, 0.1, 0.3]) for (const z of [-0.24, 0.24])
+        g.add(at(box(0.015, 0.15, 0.015, mat(0x2563eb)), x, dir * 0.07, z));
+      return g;
+    };
+    b.m('et_pins', stack(0, 1), 0, 0.97, 0);
+    // 四支導柱 + 前兩支伸縮護套
+    for (const x of [-0.52, 0.52]) for (const z of [-0.3, 0.3]) {
+      b.m('et_guide', cyl(0.03, 0.75, mat(0xd1d5db, { metal: 0.7, rough: 0.25 })), x, 1.33, z);
+      if (z > 0) for (let i = 0; i < 14; i++)
+        b.m('et_guide', new T.Mesh(new T.TorusGeometry(0.05, 0.012, 6, 18), mat(0x8b6b3d, { metal: 0.3 })), x, 1.0 + i * 0.022, z).rotation.x = Math.PI / 2;
+    }
+    // 上壓頭(會上下壓合):上壓板 + 上治具疊板 + 開關卡
+    const head = b.add(new T.Group(), 0, 0, 0);
+    b.m('et_guide', box(1.2, 0.05, 0.8, mat(0xcbd5e1, { metal: 0.4 })), 0, 1.5, 0, head);
+    b.m('et_pins', stack(0, -1), 0, 1.46, 0, head);
+    for (const x of [-0.18, 0.18]) b.m('et_grid', box(0.3, 0.02, 0.22, mat(0x15803d)), x, 1.55, -0.1, head);   // 開關卡 / 格點電路板
+    b.m('et_press', cyl(0.07, 0.25, mat(0x94a3b8, { metal: 0.6 })), 0, 1.68, 0);                               // 壓合氣缸
+    // 上機箱(標示 PRECISE / 機台編號處)
+    b.shell(box(W, 0.4, 0.9, mat(grey, { shell: true })), 0, 1.95, -0.02);
+    b.shell(box(W - 0.1, 0.12, 0.85, mat(grey, { shell: true })), 0, 1.7, -0.02);
+    b.add(box(0.35, 0.2, 0.01, mat(0xffffff)), 0.45, 1.97, 0.435);                                             // 機台編號牌
+    b.add(cyl(0.05, 0.08, mat(0xdc2626, { emissive: 0x440000 })), 0.55, 2.19, -0.3);                           // 警示燈
+    b.m('et_press', box(0.18, 0.12, 0.1, mat(0x64748b)), -0.6, 0.55, -0.48);                                   // 空壓調壓 / 過濾組
+    b.monitor(1.0, 1.3, 0.3);
+    return { target: [0, 1.15, 0.1], cam: [2.2, 1.9, 2.9], animate: t => {                                      // 壓合循環
+      const p = (t % 3) / 3, d = p < 0.2 ? p / 0.2 : p < 0.55 ? 1 : p < 0.75 ? 1 - (p - 0.55) / 0.2 : 0;
+      head.position.y = -0.14 * d * d * (3 - 2 * d);
+    } };
+  }
+
+  const MODELS = { fusion22, discovery, vrs, mania };
 
   function mount(el, opt) {
     const W = () => el.clientWidth, H = () => el.clientHeight;

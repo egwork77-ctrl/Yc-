@@ -8,3 +8,7 @@ machine_id,part_id,part_no,stock,lead_days
 *,optics,(請填料號),0,30
 *,vrs_light,(請填料號),0,21
 *,vrs_gantry,(請填料號),0,30
+*,et_pins,(請填料號),200,14
+*,et_grid,(請填料號),0,45
+*,et_press,(請填料號),1,21
+*,et_guide,(請填料號),0,30

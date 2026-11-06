@@ -1,9 +1,13 @@
 # AOI 機台預知保養與故障排除系統
 
-目前機台（共 11 台，電測 6 台待加入）：
-- 3 台 Orbotech Discovery（裸板 AOI）：`discovery8`
-- 2 台 KLA Fusion 22（裸板 AOI）：`fusion22`
-- 6 台 Orbotech VRS（缺陷複判站）：`vrs`
+目前機台（共 17 台，銘牌資料在 `samples/machines.json`）：
+- AOI：D83、D85（Orbotech Discovery 8800）、D88（Discovery 9000 L）→ `discovery8`
+- AOI：F1、F2（Orbotech Fusion 22）→ `fusion22`
+- VRS 缺陷複判站 ×6（Orbotech VeriSmart）→ `vrs`
+- 電測 ET1–ET6（Mania / Gardien PRECISE 治具式：200、400、M8 AUTO）→ `et_precise`
+
+機台頁會顯示銘牌資料（型號、序號、設備 No.、卡號、進廠日期、機齡）；
+`calibration.next` 到期或逾期時，會自動列入待辦。
 
 **在故障發生前就預警。** 從機台感測資料的長期趨勢，預測幾天後會超標，
 再搭配定期保養週期（天數、運轉時數、過板數），列出保養待辦和處理步驟。
@@ -41,7 +45,7 @@ python -m faultdetect serve --host 0.0.0.0 --data samples
 1. **先手動點檢**：每天在 iPad 上「📋 點檢」輸入一次，約兩週後就能開始預測。
 2. **找出可自動擷取的 Log**（唯讀，不修改機台）：
    - 機台有開網路分享時，在筆電執行：
-     `python tools/log_probe.py "\\機台電腦\分享資料夾" --days 60 --out probe_DIS8-1`
+     `python tools/log_probe.py "\\機台電腦\分享資料夾" --days 60 --out probe_D83`
    - 舊版 Windows、沒有網路分享時：把 `tools/list_files.bat` 放進 USB，在機台電腦上點兩下執行
    - 執行前請先確認公司 IT／設備課的規定，以及原廠保固條款
 3. 找到 Log 後，在 `machines.json` 的機台加入 `live_log`（路徑＋正規表示式對應事件），監看時就會自動記錄（🤖 標示）：

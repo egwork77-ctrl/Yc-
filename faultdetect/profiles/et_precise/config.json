@@ -1,0 +1,199 @@
+{
+  "_說明": "Mania Technologie / Gardien PRECISE 系列治具(針床)式電測機。測試參數依客戶參數表(例:250V、開路 30–50Ω、絕緣 20–30MΩ)。門檻與週期為暫定值,請依原廠 / ATT 建議與實際基準調整。",
+  "sensors": {
+    "false_fail_pct": {
+      "name": "誤測率(%)",
+      "max_warn": 3,
+      "max_alarm": 6
+    },
+    "contact_fail_pts": {
+      "name": "接觸不良點數(每片平均)",
+      "max_warn": 5,
+      "max_alarm": 15
+    },
+    "air_pressure": {
+      "name": "氣源壓力(bar)",
+      "min_alarm": 5.0,
+      "min_warn": 5.5,
+      "max_warn": 7.0
+    },
+    "selftest_fail_pins": {
+      "name": "自我測試失效點數",
+      "max_warn": 0.5,
+      "max_alarm": 3
+    },
+    "cycle_time_s": {
+      "name": "單片測試時間(s)",
+      "max_warn": 25,
+      "max_alarm": 35
+    }
+  },
+  "zscore_limit": 3.0,
+  "trend_window": 10,
+  "trend_slope_warn": {
+    "false_fail_pct": 0.1,
+    "contact_fail_pts": 0.3,
+    "cycle_time_s": 0.2
+  },
+  "trend_slope_fall_warn": {
+    "air_pressure": 0.03
+  },
+  "unstable_cv": {
+    "cycle_time_s": 0.15,
+    "air_pressure": 0.08
+  },
+  "predict": {
+    "window_days": 14,
+    "min_points": 5,
+    "min_r2": 0.5,
+    "urgent_days": 3,
+    "soon_days": 14
+  },
+  "maintenance": [
+    {
+      "item": "治具 / 針盤清潔",
+      "every_days": 7
+    },
+    {
+      "item": "系統自我測試(Self-Test)",
+      "every_days": 7
+    },
+    {
+      "item": "空壓過濾器排水 / 濾芯檢查",
+      "every_days": 30
+    },
+    {
+      "item": "伸縮護套 / 導柱外觀檢查",
+      "every_days": 90
+    },
+    {
+      "item": "外部校正(ATT)",
+      "every_days": 365
+    },
+    {
+      "item": "導柱 / 軸承潤滑",
+      "every_hours": 1000,
+      "counter": "run_hours"
+    },
+    {
+      "item": "測試針 / 彈簧針更換",
+      "every_hours": 500000,
+      "counter": "press_cycles"
+    }
+  ],
+  "parts_safety_days": 3,
+  "parts": [
+    {
+      "id": "et_pins",
+      "name": "測試針 / 彈簧針",
+      "sensors": [
+        "contact_fail_pts",
+        "false_fail_pct"
+      ],
+      "life_item": "測試針 / 彈簧針更換",
+      "lead_days": 14
+    },
+    {
+      "id": "et_grid",
+      "name": "測試格點 / 開關卡",
+      "sensors": [
+        "selftest_fail_pins"
+      ],
+      "lead_days": 45
+    },
+    {
+      "id": "et_press",
+      "name": "壓合氣缸 / 氣壓元件",
+      "sensors": [
+        "air_pressure"
+      ],
+      "lead_days": 21
+    },
+    {
+      "id": "et_guide",
+      "name": "導柱 / 軸承 / 伸縮護套",
+      "sensors": [
+        "cycle_time_s"
+      ],
+      "lead_days": 30
+    }
+  ],
+  "events": [
+    {
+      "id": "false_fail",
+      "name": "同點重複誤測",
+      "symptoms": [
+        "false_fail_pct_high",
+        "contact_fail_pts_high"
+      ]
+    },
+    {
+      "id": "contact_fail",
+      "name": "接觸不良 / Open 多",
+      "symptoms": [
+        "contact_fail_pts_high",
+        "contact_fail_pts_rising"
+      ]
+    },
+    {
+      "id": "iso_fail",
+      "name": "絕緣 / 短路誤判",
+      "symptoms": [
+        "iso_fail"
+      ]
+    },
+    {
+      "id": "pin_mark",
+      "name": "針痕過深 / 出 PAD",
+      "symptoms": [
+        "pin_mark"
+      ]
+    },
+    {
+      "id": "fixture_offset",
+      "name": "治具對位偏移",
+      "symptoms": [
+        "fixture_offset"
+      ]
+    },
+    {
+      "id": "press_abn",
+      "name": "壓合異常 / 壓力不足",
+      "symptoms": [
+        "press_abn",
+        "air_pressure_low"
+      ]
+    },
+    {
+      "id": "air_alarm",
+      "name": "氣壓警報",
+      "symptoms": [
+        "air_pressure_low"
+      ]
+    },
+    {
+      "id": "selftest_fail",
+      "name": "自我測試失敗",
+      "symptoms": [
+        "selftest_fail_pins_high"
+      ]
+    },
+    {
+      "id": "program_error",
+      "name": "程式 / 參數錯誤",
+      "symptoms": [
+        "program_error"
+      ]
+    },
+    {
+      "id": "machine_stop",
+      "name": "當機 / 警報停機",
+      "symptoms": [],
+      "alert_count": 1
+    }
+  ],
+  "event_rules": {
+    "count": 3,
+    "minutes": 30
+  }
+}

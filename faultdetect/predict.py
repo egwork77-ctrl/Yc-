@@ -42,11 +42,26 @@ def _fit(points):
     return slope, intercept, r2
 
 
-def _limits(rule):
-    """回傳 (方向, warn, alarm);方向 +1 代表往上超標,-1 代表往下。"""
-    if "max_warn" in rule or "max_alarm" in rule:
+def _limits(rule, slope=0.0, current=None):
+    """回傳 (方向, warn, alarm);方向 +1 代表往上超標,-1 代表往下。
+    同時有上下限時(如氣壓):依趨勢方向判斷;趨勢不明則看現值較接近哪一邊。"""
+    up = ("max_warn" in rule or "max_alarm" in rule)
+    down = ("min_warn" in rule or "min_alarm" in rule)
+    if up and down:
+        if slope > 0:
+            down = False
+        elif slope < 0:
+            up = False
+        elif current is not None:
+            hi = rule.get("max_warn", rule.get("max_alarm"))
+            lo = rule.get("min_warn", rule.get("min_alarm"))
+            up = abs(hi - current) <= abs(current - lo)
+            down = not up
+        else:
+            down = False
+    if up:
         return 1, rule.get("max_warn"), rule.get("max_alarm")
-    if "min_warn" in rule or "min_alarm" in rule:
+    if down:
         return -1, rule.get("min_warn"), rule.get("min_alarm")
     return 0, None, None
 
@@ -60,15 +75,17 @@ def _related_faults(sensor, direction, kb):
 def predict_sensor(sensor, pts, now, cfg, kb):
     rule = cfg["sensors"][sensor]
     pc = cfg["predict"]
-    direction, warn, alarm = _limits(rule)
     window = [(t, v) for t, v in pts if t >= now - timedelta(days=pc["window_days"])]
-    if direction == 0 or len(window) < pc["min_points"]:
+    if len(window) < pc["min_points"]:
         return None
     t0 = window[0][0]
     xy = [((t - t0).total_seconds() / 86400, v) for t, v in window]
     slope, intercept, r2 = _fit(xy)
     x_now = (now - t0).total_seconds() / 86400
     current = slope * x_now + intercept
+    direction, warn, alarm = _limits(rule, slope if r2 >= pc["min_r2"] else 0.0, current)
+    if direction == 0:
+        return None
 
     # 健康分數:基準值(歷史前段中位數)到警報值的剩餘比例
     head = sorted(v for _, v in pts[: max(3, len(pts) // 5)])

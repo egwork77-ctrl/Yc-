@@ -20,6 +20,7 @@ class WebTest(unittest.TestCase):
         shutil.copytree(SAMPLES / "vibration", Path(cls.tmp) / "vibration")
         for f in ("machines.json", "d8_history.csv", "d8_maintenance_log.csv",
                   "f22_history.csv", "f22_maintenance_log.csv", "vrs_history.csv", "vrs_maintenance_log.csv",
+                  "et_history.csv", "et_maintenance_log.csv",
                   "spares.csv"):
             shutil.copy(SAMPLES / f, cls.tmp)
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(App(cls.tmp)))
@@ -41,14 +42,15 @@ class WebTest(unittest.TestCase):
     def test_overview_five_machines(self):
         ov = self.get("/api/overview")
         self.assertEqual([m["machine_id"] for m in ov["machines"]],
-                         ["DIS8-1", "DIS8-2", "DIS8-3", "FUS22-1", "FUS22-2"] + [f"VRS-{i}" for i in range(1, 7)])
+                         ["D83", "D85", "D88", "F1", "F2"] + [f"VRS-{i}" for i in range(1, 7)]
+                         + [f"ET{i}" for i in range(1, 7)])
         self.assertEqual(ov["errors"], [])
         self.assertTrue(ov["contacts"])
 
     def test_vibration_api(self):
-        v = self.get("/api/vibration?machine_id=FUS22-2")
+        v = self.get("/api/vibration?machine_id=F2")
         self.assertEqual(v["level"], "alarm")
-        self.assertEqual(self.get("/api/vibration?machine_id=DIS8-3"), {})
+        self.assertEqual(self.get("/api/vibration?machine_id=D88"), {})
 
     def test_static_js_and_traversal(self):
         r = urllib.request.urlopen(self.base + "/static/model3d.js")
@@ -56,23 +58,31 @@ class WebTest(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError):
             urllib.request.urlopen(self.base + "/static/../web.py")
 
+    def test_nameplate_and_calibration(self):
+        m = {x["machine_id"]: x for x in self.get("/api/overview")["machines"]}
+        self.assertEqual(m["D88"]["info"]["model"], "Orbotech Discovery 9000 L")
+        self.assertEqual(m["D88"]["info"]["asset_no"], "PI122043")
+        self.assertGreaterEqual(m["ET5"]["info"]["age_years"], 22)
+        cal = [t for t in m["ET1"]["tasks"] if t["type"] == "校正"]
+        self.assertEqual(cal[0]["level"], "overdue")
+
     def test_faults(self):
         ids = [f["id"] for f in self.get("/api/faults?profile=fusion22")]
         self.assertIn("light_channel", ids)
 
     def test_repair_roundtrip(self):
-        self.post("/api/repairs", {"machine_id": "DIS8-1", "fault_id": "vacuum_leak",
+        self.post("/api/repairs", {"machine_id": "D83", "fault_id": "vacuum_leak",
                                    "fault_name": "平台真空不足", "result": "未解決", "note": "幫浦異音"})
         rs = self.get("/api/repairs")
         self.assertEqual(rs[0]["note"], "幫浦異音")
         self.assertTrue(rs[0]["time"])
 
     def test_inspection_appends_and_warns(self):
-        r = self.post("/api/inspection", {"machine_id": "DIS8-3",
+        r = self.post("/api/inspection", {"machine_id": "D88",
                                           "values": {"vacuum_kpa": "55", "air_pressure": "6.1", "bogus": "1"}})
         self.assertTrue(any("平台真空" in w for w in r["warnings"]))
         self.assertNotIn("bogus", r["saved"])
-        form = self.get("/api/form?machine_id=DIS8-3")
+        form = self.get("/api/form?machine_id=D88")
         last = {f["key"]: f["last"] for f in form["fields"]}
         self.assertEqual(float(last["vacuum_kpa"]), 55.0)
 
@@ -84,14 +94,14 @@ class WebTest(unittest.TestCase):
 
     def test_maintenance_resets_life_and_uses_stock(self):
         def lamp(ov):
-            m = next(x for x in ov["machines"] if x["machine_id"] == "DIS8-2")
+            m = next(x for x in ov["machines"] if x["machine_id"] == "D85")
             return next(p for p in m["parts"] if p["part_id"] == "lamp")
         self.post("/api/spares", {"part_id": "lamp", "stock": 3})
         self.assertLess(lamp(self.get("/api/overview"))["due_days"], 14)
-        r = self.post("/api/maintenance", {"machine_id": "DIS8-2", "item": "照明燈管更換", "part_id": "lamp"})
+        r = self.post("/api/maintenance", {"machine_id": "D85", "item": "照明燈管更換", "part_id": "lamp"})
         self.assertEqual(r["spare"]["stock"], 2)
         self.assertIn("lamp_hours", r["saved"])
-        sched = next(x for x in self.get("/api/overview")["machines"] if x["machine_id"] == "DIS8-2")["schedule"]
+        sched = next(x for x in self.get("/api/overview")["machines"] if x["machine_id"] == "D85")["schedule"]
         item = next(x for x in sched if x["item"] == "照明燈管更換")
         self.assertGreater(item["due_days"], 50)
 

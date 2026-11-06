@@ -3,7 +3,7 @@
 在「筆電」上執行,掃描機台電腦的網路分享資料夾(或複製出來的資料夾),
 找出可能有用的 Log、校正、警報、統計檔,產生報告給開發者判斷怎麼自動擷取。
 
-  python tools/log_probe.py "\\\\AOI-PC\\D$" "\\\\AOI-PC\\Logs" --days 60 --out probe_DIS8-1
+  python tools/log_probe.py "\\\\AOI-PC\\D$" "\\\\AOI-PC\\Logs" --days 60 --out probe_D83
 
 ⚠️ 本工具只讀取檔案,不修改、不刪除、不在機台上安裝任何東西。
 ⚠️ 送出報告前請先看過內容,移除客戶料號等機密。

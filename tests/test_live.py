@@ -5,7 +5,7 @@ from pathlib import Path
 
 from faultdetect.live import Live, LogWatcher
 
-META = {"machines": [{"id": "DIS8-1", "profile": "discovery8"}, {"id": "FUS22-1", "profile": "fusion22"}]}
+META = {"machines": [{"id": "D83", "profile": "discovery8"}, {"id": "F1", "profile": "fusion22"}]}
 
 
 class FakeClock:
@@ -33,7 +33,7 @@ class LiveTest(unittest.TestCase):
         self.clock.t += timedelta(minutes=minutes)
 
     def test_alert_after_repeats_with_suggestions(self):
-        s = self.live.start("DIS8-1", "小王")
+        s = self.live.start("D83", "小王")
         for _ in range(2):
             self.live.add_event(s["session_id"], "board_not_held")
             self.tick(5)
@@ -46,20 +46,20 @@ class LiveTest(unittest.TestCase):
         self.assertTrue(top["improve"])
 
     def test_window_expires(self):
-        s = self.live.start("DIS8-1")
+        s = self.live.start("D83")
         for _ in range(3):
             self.live.add_event(s["session_id"], "image_blur")
             self.tick(20)
         self.assertEqual(self.live.live(s["session_id"])["alerts"], [])   # 40 分鐘內才 3 次,超過 30 分鐘視窗
 
     def test_machine_stop_alerts_once(self):
-        s = self.live.start("FUS22-1")
+        s = self.live.start("F1")
         self.live.add_event(s["session_id"], "machine_stop")
         self.assertEqual(len(self.live.live(s["session_id"])["alerts"]), 1)
 
     def test_resume_and_report(self):
-        s = self.live.start("DIS8-1")
-        self.assertEqual(self.live.start("DIS8-1")["session_id"], s["session_id"])  # 進行中場次可接續
+        s = self.live.start("D83")
+        self.assertEqual(self.live.start("D83")["session_id"], s["session_id"])  # 進行中場次可接續
         self.live.add_event(s["session_id"], "note", "幫浦有異音")
         self.live.add_event(s["session_id"], "board_not_held")
         self.tick(90)
@@ -71,24 +71,24 @@ class LiveTest(unittest.TestCase):
             self.live.add_event(s["session_id"], "board_not_held")
 
     def test_overall_ranked_by_event_count(self):
-        s = self.live.start("DIS8-1")
+        s = self.live.start("D83")
         for _ in range(3):
             self.live.add_event(s["session_id"], "board_not_held")
         self.live.add_event(s["session_id"], "registration_fail")
         self.assertEqual(self.live.live(s["session_id"])["overall"][0]["id"], "vacuum_leak")
 
     def test_unknown_event_rejected(self):
-        s = self.live.start("DIS8-1")
+        s = self.live.start("D83")
         with self.assertRaises(ValueError):
             self.live.add_event(s["session_id"], "nope")
 
     def test_log_watcher(self):
         log = Path(self.tmp.name) / "machine.log"
         log.write_text("old line Registration failed\n", encoding="utf-8")
-        machines = [{"id": "DIS8-1", "profile": "discovery8", "live_log": {
+        machines = [{"id": "D83", "profile": "discovery8", "live_log": {
             "path": str(log), "patterns": [{"regex": "registration fail", "event": "registration_fail"}]}}]
         w = LogWatcher(self.live, machines)
-        s = self.live.start("DIS8-1")
+        s = self.live.start("D83")
         w.poll_once()                                    # 第一次從檔尾開始,不重讀舊資料
         with open(log, "a", encoding="utf-8") as f:
             f.write("10:01 Registration FAILED on panel 12\n10:02 ok\n")

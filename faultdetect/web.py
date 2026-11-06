@@ -18,7 +18,7 @@ from .live import Live, LogWatcher
 
 STATIC_DIR = Path(__file__).with_name("static")
 STATIC_TYPES = {".js": "application/javascript", ".css": "text/css", ".glb": "model/gltf-binary"}
-MODEL3D = {"discovery8": "discovery", "fusion22": "fusion22", "vrs": "vrs"}
+MODEL3D = {"discovery8": "discovery", "fusion22": "fusion22", "vrs": "vrs", "et_precise": "mania"}
 
 REPAIR_FIELDS = ["time", "machine_id", "fault_id", "fault_name", "result", "solved_step",
                  "steps_done", "technician", "note"]
@@ -166,14 +166,19 @@ async function overview(){V.innerHTML='<p class="muted">載入中…</p>';const 
  if(ov.errors.length)V.innerHTML=ov.errors.map(e=>`<div class="card warn">${esc(e)}</div>`).join('');else V.innerHTML='';
  V.innerHTML+=`<p class="muted">🟢 監測中 · 每 ${ov.refresh} 秒自動更新 · 最後更新 ${esc(ov.updated.slice(11))}</p><div class="grid">`+ov.machines.map(m=>`
  <div class="card tap ${m.level}" onclick="go('machine','${esc(m.machine_id)}')">
- <h2>${esc(m.name)}</h2><div class="muted">${esc(m.machine_id)} · ${esc(m.model)} · ${LV[m.level]}</div>
+ <h2>${esc(m.name)}</h2><div class="muted">${esc(m.model)}${m.info&&m.info.age_years?' · 機齡 '+m.info.age_years+' 年':''} · ${LV[m.level]}</div>
  <p>健康度 <b>${m.health}</b></p><div class="bar"><i style="width:${m.health}%;background:${hcol(m.health)}"></i></div>
  ${m.parts.filter(p=>p.status!=='ok').map(p=>`<div style="margin-top:6px">${PS[p.status]} ${esc(p.name)}(${dd(p.due_days)})</div>`).join('')}
  <ul>${m.tasks.slice(0,3).map(t=>`<li>${LV[t.level]} ${esc(t.item)}(${dd(t.due_days)})</li>`).join('')||'<li>無待辦</li>'}</ul></div>`).join('')+'</div>';}
 
+const INFO=[['model','型號'],['serial','序號'],['asset_no','設備 No.'],['card','卡號'],['installed','進廠日期'],['age_years','機齡(年)'],['dept','保管單位'],['note','備註']];
+function infoTable(i){const rows=INFO.filter(([k])=>i[k]!=null).map(([k,t])=>`<tr><td class="muted">${t}</td><td>${esc(i[k])}</td></tr>`);
+ if(i.calibration)rows.push(`<tr><td class="muted">外部校正</td><td>${esc(i.calibration.by||'')} 上次 ${esc(i.calibration.last||'—')} · 下次 ${esc(i.calibration.next||'—')}</td></tr>`);
+ return rows.length?`<h3>銘牌資料</h3><table>${rows.join('')}</table>`:'';}
 async function machine(id){const ov=S.ov||await load();const m=ov.machines.find(x=>x.machine_id===id);S.m=m;
  V.innerHTML=`<div class="card ${m.level}"><h2>${esc(m.name)}</h2><div class="muted">${esc(m.machine_id)} · ${esc(m.model)} · 資料至 ${esc(m.as_of||'—')}</div>
  <p>健康度 <b>${m.health}</b></p><div class="bar"><i style="width:${m.health}%;background:${hcol(m.health)}"></i></div>
+ ${infoTable(m.info||{})}
  <div class="row" style="margin-top:14px"><button onclick="go('faults','${esc(id)}')">🔧 開始排除故障</button></div></div>
  ${m.model3d?`<div class="card"><h3>🧊 3D 機台</h3><p class="muted">拖曳旋轉、雙指縮放,點選零件查看資料(外型依現場照片估計,內部機構為示意)</p>
  <div id="m3d" style="height:min(60vh,460px);border-radius:12px;overflow:hidden;touch-action:none"></div>
@@ -299,7 +304,7 @@ async function sendMaint(){try{const r=await api('/api/maintenance',{method:'POS
  catch(e){$('#mres').innerHTML=`<p style="color:var(--red)">${esc(e.message)}</p>`;}}
 
 async function upload(){V.innerHTML=`<div class="card"><h2>上傳資料分析</h2><p class="muted">從機台匯出的 CSV(歷史感測資料 → 預知保養;檢測結果 → 故障診斷)</p>
- <select id="prof"><option value="discovery8">Orbotech Discovery 8</option><option value="fusion22">KLA Fusion 22</option><option value="vrs">Orbotech VRS</option><option value="aoi">SMT AOI</option><option value="generic">一般機台</option></select><br><br>
+ <select id="prof"><option value="discovery8">Orbotech Discovery 8</option><option value="fusion22">KLA Fusion 22</option><option value="vrs">Orbotech VRS</option><option value="et_precise">電測 Mania PRECISE</option><option value="aoi">SMT AOI</option><option value="generic">一般機台</option></select><br><br>
  <input type="file" id="file" accept=".csv"><br><br><textarea id="csv" placeholder="或貼上 CSV 內容"></textarea><br><br>
  <div class="row"><button onclick="up('predict')">🔧 預知保養</button><button class="ghost" onclick="up('analyze')">即時故障診斷</button></div></div><div id="out"></div>`;
  $('#file').onchange=e=>{const r=new FileReader();r.onload=()=>$('#csv').value=r.result;r.readAsText(e.target.files[0]);};}
@@ -353,6 +358,18 @@ class App:
                              "model3d": info.get("model3d") or MODEL3D.get(info.get("profile")),
                              "profile": info.get("profile", "generic"), "health": 100, "level": "ok",
                              "as_of": None, "parts": [], "predictions": [], "schedule": [], "tasks": []})
+        for m in out:
+            m["info"] = self._info(machines.get(m["machine_id"], {}))
+            cal = (machines.get(m["machine_id"], {}).get("calibration") or {})
+            if cal.get("next"):
+                days = (datetime.fromisoformat(cal["next"]) - datetime.now()).days
+                lv = "overdue" if days < 0 else "alarm" if days <= 7 else "warn" if days <= 30 else None
+                if lv:
+                    m["tasks"].insert(0, {"type": "校正", "item": f"外部校正({cal.get('by', '')})到期 {cal['next']}",
+                                          "level": lv, "due_days": days,
+                                          "action": f"已逾期 {-days} 天,請安排校正" if days < 0 else "請安排校正"})
+                    if predict.LEVEL_ORDER[lv] < predict.LEVEL_ORDER[m["level"]]:
+                        m["level"] = lv
         order = list(machines)
         out.sort(key=lambda m: order.index(m["machine_id"]) if m["machine_id"] in order else len(order))
         return {"data_dir": str(self.dir), "machines": out, "errors": errors,
@@ -479,6 +496,16 @@ class App:
                          "result": "保養完成", "technician": body.get("technician", ""),
                          "note": (body.get("note", "") + (f"(領用 {used['name']},剩 {used['stock']})" if used else ""))})
         return {"saved": row, "spare": used}
+
+    @staticmethod
+    def _info(meta):
+        keys = ("model", "serial", "asset_no", "card", "installed", "dept", "note", "calibration")
+        info = {k: meta[k] for k in keys if meta.get(k)}
+        if meta.get("installed"):
+            y, mth = (int(x) for x in meta["installed"][:7].split("-"))
+            now = datetime.now()
+            info["age_years"] = round(now.year - y + (now.month - mth) / 12, 1)
+        return info
 
     @property
     def repair_file(self):
