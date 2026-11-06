@@ -63,7 +63,7 @@ PAGE = r"""<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
 header{padding:14px 16px;font-size:20px;font-weight:700}main{padding:0 16px 96px;max-width:1100px;margin:auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .card{background:var(--card);border-radius:14px;padding:14px 16px;margin:10px 0;box-shadow:0 1px 3px #0002;border-left:6px solid var(--green)}
-.card.alarm,.card.overdue{border-left-color:var(--red)}.card.warn{border-left-color:var(--amber)}.card.info{border-left-color:var(--blue)}
+.card.alarm,.card.overdue,.card.down{border-left-color:var(--red)}.card.warn{border-left-color:var(--amber)}.card.info{border-left-color:var(--blue)}
 .tap{cursor:pointer}.muted{color:var(--muted);font-size:14px}h2{margin:4px 0 8px;font-size:20px}h3{margin:14px 0 6px}
 .bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%}
 button,.btn{font-size:18px;padding:14px 18px;border-radius:12px;border:0;background:var(--blue);color:#fff;min-height:52px;cursor:pointer}
@@ -88,7 +88,7 @@ ul{padding-left:20px}li{margin:4px 0}table{border-collapse:collapse;width:100%}t
 <script>
 const $=s=>document.querySelector(s), V=$('#view');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const LV={overdue:'⛔ 逾期',alarm:'🔴 緊急',warn:'🟡 近期',info:'🔵 規劃',ok:'🟢 正常'};
+const LV={down:'🛑 停機待修',overdue:'⛔ 逾期',alarm:'🔴 緊急',warn:'🟡 近期',info:'🔵 規劃',ok:'🟢 正常'};
 const dd=d=>d==null?'—':(d<=0?'現在':d+' 天');
 const hcol=h=>h<60?'var(--red)':h<80?'var(--amber)':'var(--green)';
 const PS={order_now:'🛒 立即備料',order_soon:'📋 準備備料',stocked:'📦 有庫存',ok:'🟢 正常'};
@@ -171,7 +171,7 @@ async function overview(){V.innerHTML='<p class="muted">載入中…</p>';const 
  ${m.parts.filter(p=>p.status!=='ok').map(p=>`<div style="margin-top:6px">${PS[p.status]} ${esc(p.name)}(${dd(p.due_days)})</div>`).join('')}
  <ul>${m.tasks.slice(0,3).map(t=>`<li>${LV[t.level]} ${esc(t.item)}(${dd(t.due_days)})</li>`).join('')||'<li>無待辦</li>'}</ul></div>`).join('')+'</div>';}
 
-const INFO=[['model','型號'],['serial','序號'],['asset_no','設備 No.'],['card','卡號'],['installed','進廠日期'],['age_years','機齡(年)'],['dept','保管單位'],['note','備註']];
+const INFO=[['status_note','⚠️ 目前狀態'],['down_since','停機日期'],['model','型號'],['serial','序號'],['asset_no','設備 No.'],['card','卡號'],['installed','進廠日期'],['age_years','機齡(年)'],['dept','保管單位'],['note','備註']];
 function infoTable(i){const rows=INFO.filter(([k])=>i[k]!=null).map(([k,t])=>`<tr><td class="muted">${t}</td><td>${esc(i[k])}</td></tr>`);
  if(i.calibration)rows.push(`<tr><td class="muted">外部校正</td><td>${esc(i.calibration.by||'')} 上次 ${esc(i.calibration.last||'—')} · 下次 ${esc(i.calibration.next||'—')}</td></tr>`);
  return rows.length?`<h3>銘牌資料</h3><table>${rows.join('')}</table>`:'';}
@@ -255,6 +255,7 @@ async function pick(){const ov=S.ov||await load();
 async function faults(id){const ov=S.ov||await load();const m=ov.machines.find(x=>x.machine_id===id);S.m=m;
  S.faults=await api('/api/faults?profile='+encodeURIComponent(m.profile));
  const rec=new Set(m.predictions.filter(p=>p.level!=='ok').flatMap(p=>p.faults.map(f=>f.name)));
+ if(m.level==='down')S.faults.filter(f=>/停機/.test(f.category)).forEach(f=>rec.add(f.name));
  const sorted=[...S.faults].sort((a,b)=>rec.has(b.name)-rec.has(a.name));
  V.innerHTML=`<h2>${esc(m.name)}:發生什麼問題?</h2><p class="muted">⭐ 為系統依數據推薦</p>`+sorted.map((f,i)=>`
  <div class="card tap ${rec.has(f.name)?'warn':''}" onclick="startFix('${esc(f.id)}')"><span class="tag">${esc(f.category)}</span>
@@ -359,7 +360,13 @@ class App:
                              "profile": info.get("profile", "generic"), "health": 100, "level": "ok",
                              "as_of": None, "parts": [], "predictions": [], "schedule": [], "tasks": []})
         for m in out:
-            m["info"] = self._info(machines.get(m["machine_id"], {}))
+            meta = machines.get(m["machine_id"], {})
+            m["info"] = self._info(meta)
+            if meta.get("status") == "down":            # 故障停機中:最優先顯示
+                m["level"] = "down"
+                m["tasks"].insert(0, {"type": "停機", "item": f"停機待修(自 {meta.get('down_since', '—')})",
+                                      "level": "overdue", "due_days": 0,
+                                      "action": meta.get("status_note") or "請進入排除故障"})
             cal = (machines.get(m["machine_id"], {}).get("calibration") or {})
             if cal.get("next"):
                 days = (datetime.fromisoformat(cal["next"]) - datetime.now()).days
@@ -499,7 +506,8 @@ class App:
 
     @staticmethod
     def _info(meta):
-        keys = ("model", "serial", "asset_no", "card", "installed", "dept", "note", "calibration")
+        keys = ("model", "serial", "asset_no", "card", "installed", "dept", "note", "calibration",
+                "status_note", "down_since")
         info = {k: meta[k] for k in keys if meta.get(k)}
         if meta.get("installed"):
             y, mth = (int(x) for x in meta["installed"][:7].split("-"))

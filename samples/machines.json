@@ -1,5 +1,5 @@
 {
-  "_說明": "機台清單、資料來源與聯絡窗口。history/log 路徑相對於此資料夾。銘牌資料:model 型號、asset_no 設備No、card 卡號、installed 進廠日期、serial 序號、calibration 外部校正。",
+  "_說明": "機台清單、資料來源與聯絡窗口。history/log 路徑相對於此資料夾。銘牌資料:model 型號、asset_no 設備No、card 卡號、installed 進廠日期、serial 序號、calibration 外部校正。 status=down 表示故障停機待修(status_note 說明、down_since 停機日)。",
   "sources": [
     {
       "profile": "discovery8",
@@ -135,19 +135,28 @@
       "id": "ET2",
       "model": "Mania PRECISE(待確認)",
       "name": "ET2",
-      "profile": "et_precise"
+      "profile": "et_precise",
+      "status": "down",
+      "down_since": "2026-11-06",
+      "status_note": "故障停機,目前修不好(故障現象待補)"
     },
     {
       "id": "ET3",
       "model": "Mania PRECISE(待確認)",
       "name": "ET3",
-      "profile": "et_precise"
+      "profile": "et_precise",
+      "status": "down",
+      "down_since": "2026-11-06",
+      "status_note": "故障停機,目前修不好(故障現象待補)"
     },
     {
       "id": "ET4",
       "model": "Mania PRECISE(待確認)",
       "name": "ET4",
-      "profile": "et_precise"
+      "profile": "et_precise",
+      "status": "down",
+      "down_since": "2026-11-06",
+      "status_note": "故障停機,目前修不好(故障現象待補)"
     },
     {
       "id": "ET5",

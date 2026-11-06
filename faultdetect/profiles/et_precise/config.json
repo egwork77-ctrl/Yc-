@@ -186,6 +186,30 @@
       ]
     },
     {
+      "id": "no_start",
+      "name": "無法開機 / 程式連不上機台",
+      "symptoms": [
+        "no_start"
+      ],
+      "alert_count": 1
+    },
+    {
+      "id": "press_no_move",
+      "name": "壓合不動作",
+      "symptoms": [
+        "press_no_move"
+      ],
+      "alert_count": 1
+    },
+    {
+      "id": "all_fail",
+      "name": "大量點全部 Fail",
+      "symptoms": [
+        "all_fail"
+      ],
+      "alert_count": 1
+    },
+    {
       "id": "machine_stop",
       "name": "當機 / 警報停機",
       "symptoms": [],

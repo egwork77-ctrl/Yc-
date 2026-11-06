@@ -66,6 +66,13 @@ class WebTest(unittest.TestCase):
         cal = [t for t in m["ET1"]["tasks"] if t["type"] == "校正"]
         self.assertEqual(cal[0]["level"], "overdue")
 
+    def test_down_machine(self):
+        m = {x["machine_id"]: x for x in self.get("/api/overview")["machines"]}
+        self.assertEqual(m["ET3"]["level"], "down")
+        self.assertEqual(m["ET3"]["tasks"][0]["type"], "停機")
+        ids = [f["id"] for f in self.get("/api/faults?profile=et_precise")]
+        self.assertIn("et_press_no_move", ids)
+
     def test_faults(self):
         ids = [f["id"] for f in self.get("/api/faults?profile=fusion22")]
         self.assertIn("light_channel", ids)
