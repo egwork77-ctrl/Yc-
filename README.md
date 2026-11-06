@@ -14,6 +14,10 @@
 
 ## 現場使用：筆電 + iPad
 
+**最簡單的方式**：在筆電上雙擊 `start_windows.bat`（Mac 用 `start_mac.command`），畫面會顯示 iPad 要輸入的網址。
+需要 Python 3.10 以上（python.org 下載，Windows 安裝時要勾選「Add python.exe to PATH」）。
+
+
 ```bash
 python -m faultdetect serve --host 0.0.0.0 --data samples
 ```
