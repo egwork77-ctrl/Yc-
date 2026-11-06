@@ -296,31 +296,119 @@
 
   const MODELS = { fusion22, discovery, vrs, mania };
 
+  // 數位孿生(全息)風格用的 HTML 疊層樣式
+  const HOLO_CSS = `
+  .aoi-ov{position:absolute;inset:0;pointer-events:none;font-family:system-ui,-apple-system,"PingFang TC",sans-serif;overflow:hidden}
+  .aoi-ov svg{position:absolute;inset:0;width:100%;height:100%}
+  .aoi-lb{position:absolute;transform:translate(-50%,-50%);background:rgba(8,47,73,.72);border:1px solid #22d3ee;color:#e0f2fe;
+    padding:4px 8px;border-radius:6px;font-size:12px;line-height:1.35;white-space:nowrap;box-shadow:0 0 12px rgba(34,211,238,.35);backdrop-filter:blur(2px)}
+  .aoi-lb b{color:#fff}.aoi-lb .v{font-size:15px;font-weight:700}
+  .aoi-panel{position:absolute;left:10px;top:10px;width:min(210px,38%);background:rgba(8,47,73,.6);border:1px solid #22d3ee;border-radius:8px;
+    color:#e0f2fe;padding:8px 10px;font-size:12px;box-shadow:0 0 16px rgba(34,211,238,.3)}
+  .aoi-panel h4{margin:0 0 6px;font-size:14px;color:#fff}.aoi-panel .r{display:flex;justify-content:space-between;gap:8px;margin:2px 0}
+  .aoi-hbar{height:6px;background:rgba(148,163,184,.3);border-radius:3px;margin:4px 0 6px}.aoi-hbar i{display:block;height:100%;border-radius:3px;background:#22d3ee}
+  .aoi-gauges{position:absolute;right:10px;top:10px;bottom:10px;display:flex;flex-direction:column;justify-content:center;gap:8px;width:min(120px,24%)}
+  .aoi-g{border-left:3px solid #22d3ee;padding:2px 0 2px 8px;color:#bae6fd;font-size:11px;background:linear-gradient(90deg,rgba(8,47,73,.6),transparent)}
+  .aoi-g .v{font-size:20px;font-weight:700;color:#fff;line-height:1.1}.aoi-g .t{height:4px;background:rgba(148,163,184,.3);margin-top:3px}
+  .aoi-g .t i{display:block;height:100%;background:#4ade80}`;
+  function injectCss() {
+    if (document.getElementById('aoi-holo-css')) return;
+    const st = document.createElement('style'); st.id = 'aoi-holo-css'; st.textContent = HOLO_CSS; document.head.appendChild(st);
+  }
+  const hc = h => (h >= 80 ? '#4ade80' : h >= 60 ? '#fbbf24' : '#f87171');
+
   function mount(el, opt) {
+    injectCss();
     const W = () => el.clientWidth, H = () => el.clientHeight;
     const scene = new T.Scene();
     const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-    scene.background = new T.Color(dark ? 0x111827 : 0xf3f4f6);
+    const BG = new T.Color(dark ? 0x111827 : 0xf3f4f6), HOLO_BG = new T.Color(0x07111f);
+    scene.background = BG;
     const camera = new T.PerspectiveCamera(40, W() / H(), 0.05, 50);
     const renderer = new T.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.setSize(W(), H());
+    el.style.position = 'relative';
     el.appendChild(renderer.domElement);
     scene.add(new T.HemisphereLight(0xffffff, 0x666666, 0.9));
     const sun = new T.DirectionalLight(0xffffff, 0.8); sun.position.set(3, 5, 4); scene.add(sun);
     const floor = new T.Mesh(new T.CircleGeometry(3, 48), new T.MeshStandardMaterial({ color: dark ? 0x1f2937 : 0xd9dce1 }));
     floor.rotation.x = -Math.PI / 2; scene.add(floor);
+    const grid = new T.GridHelper(8, 40, 0x22d3ee, 0x164e63);
+    grid.material.transparent = true; grid.material.opacity = 0.45; grid.visible = false; scene.add(grid);
 
     const b = new Builder();
     const k = (MODELS[opt.model] || discovery)(b);
     scene.add(b.group);
 
-    // 網格線(類 FEA 外觀),預設隱藏
+    // 網格線(類 FEA 外觀)
     const wires = b.mech.map(n => {
       const l = new T.LineSegments(new T.WireframeGeometry(n.geometry),
         new T.LineBasicMaterial({ color: 0x0b1020, transparent: true, opacity: 0.35 }));
       l.visible = false; n.add(l); return l;
     });
+    // 數位孿生:金色輪廓線 + 藍色半透明材質
+    const holoMeshes = [];
+    b.group.traverse(o => { if (o.isMesh && !o.userData.holoSkip) holoMeshes.push(o); });
+    const edges = holoMeshes.map(n => {
+      const l = new T.LineSegments(new T.EdgesGeometry(n.geometry, 28),
+        new T.LineBasicMaterial({ color: 0xf5b942, transparent: true, opacity: 0.85 }));
+      l.visible = false; l.userData.holoSkip = true; n.add(l); return l;
+    });
+    const isShell = new Set(); b.shells.forEach(s => s.traverse(o => { if (o.isMesh) isShell.add(o); }));
+    holoMeshes.forEach(n => {
+      n.userData.mat = n.material;
+      n.userData.holo = new T.MeshBasicMaterial({ color: isShell.has(n) ? 0x60a5fa : 0x38bdf8, transparent: true,
+        opacity: isShell.has(n) ? 0.06 : 0.3, depthWrite: false, blending: isShell.has(n) ? T.NormalBlending : T.AdditiveBlending });
+    });
+
+    // HTML 疊層:零件標示、左側資訊面板、右側儀表
+    const ov = document.createElement('div'); ov.className = 'aoi-ov'; ov.style.display = 'none';
+    ov.innerHTML = '<svg></svg>'; el.appendChild(ov);
+    const svg = ov.querySelector('svg');
+    const partsById = Object.fromEntries((opt.parts || []).map(p => [p.part_id, p]));
+    const labels = [...new Set(b.pickables.map(o => o.userData.part))].filter(id => partsById[id]).map(id => {
+      const p = partsById[id], d = document.createElement('div'); d.className = 'aoi-lb';
+      d.innerHTML = `<b>${p.name}</b><br><span class="v" style="color:${hc(p.health)}">${p.health}%</span>`
+        + (p.due_days != null ? ` · ${p.due_days <= 0 ? '需立即處理' : '約 ' + p.due_days + ' 天'}` : ' · 正常');
+      ov.appendChild(d);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      line.setAttribute('fill', 'none'); line.setAttribute('stroke', '#22d3ee'); line.setAttribute('stroke-width', '1.3');
+      svg.appendChild(line);
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('r', '3.5'); dot.setAttribute('fill', '#22d3ee'); svg.appendChild(dot);
+      return { id, d, line, dot, meshes: b.pickables.filter(o => o.userData.part === id) };
+    });
+    if (opt.panel) {
+      const pn = document.createElement('div'); pn.className = 'aoi-panel';
+      pn.innerHTML = `<h4>${opt.panel.title}</h4><div class="r"><span>健康度</span><b style="color:${hc(opt.panel.health)}">${opt.panel.health}</b></div>
+        <div class="aoi-hbar"><i style="width:${opt.panel.health}%;background:${hc(opt.panel.health)}"></i></div>`
+        + (opt.panel.rows || []).map(([a, v]) => `<div class="r"><span>${a}</span><span>${v}</span></div>`).join('');
+      ov.appendChild(pn);
+    }
+    if (opt.gauges && opt.gauges.length) {
+      const g = document.createElement('div'); g.className = 'aoi-gauges';
+      g.innerHTML = opt.gauges.slice(0, 5).map(x => `<div class="aoi-g">${x.name}<div class="v">${x.value}</div>
+        <div class="t"><i style="width:${x.pct}%;background:${hc(x.pct)}"></i></div></div>`).join('');
+      ov.appendChild(g);
+    }
+    const box = new T.Box3(), tmp = new T.Box3(), v3 = new T.Vector3();
+    function placeLabels() {
+      const w = W(), h = H(), used = [];
+      labels.forEach(L => {
+        box.makeEmpty(); L.meshes.forEach(m => box.union(tmp.setFromObject(m)));
+        box.getCenter(v3).project(camera);
+        const x = (v3.x + 1) / 2 * w, y = (1 - v3.y) / 2 * h;
+        const side = x < w / 2 ? -1 : 1;
+        let lx = Math.min(Math.max(x + side * Math.max(90, w * 0.14), 70), w - 70), ly = Math.min(Math.max(y - 30, 22), h - 22);
+        while (used.some(u => Math.abs(u[0] - lx) < 120 && Math.abs(u[1] - ly) < 38)) ly += 40;   // 避免標示重疊
+        used.push([lx, ly]);
+        L.d.style.left = lx + 'px'; L.d.style.top = ly + 'px';
+        const ex = lx - side * (L.d.offsetWidth / 2);
+        L.line.setAttribute('points', `${x},${y} ${(x + ex) / 2},${ly} ${ex},${ly}`);
+        L.dot.setAttribute('cx', x); L.dot.setAttribute('cy', y);
+      });
+    }
 
     const controls = new T.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2 - 0.05;
@@ -328,23 +416,38 @@
     function reset() { camera.position.set(...k.cam); controls.target.set(...k.target); controls.update(); }
     reset();
 
-    function setMode(mode) {
+    let mode = 'xray', selected = null;
+    function setMode(m) {
+      mode = m;
+      const holo = m === 'holo';
+      holoMeshes.forEach(n => { n.material = holo ? n.userData.holo : n.userData.mat; });
+      edges.forEach(e => { e.visible = holo; });
       b.shells.forEach(s => s.traverse(o => {
         if (!o.isMesh) return;
-        o.visible = mode === 'xray' || mode === 'solid';
-        o.material.opacity = mode === 'xray' ? 0.25 : 1;
-        o.material.depthWrite = mode !== 'xray';
+        o.visible = holo || m === 'xray' || m === 'solid';
+        if (!holo) { o.material.opacity = m === 'xray' ? 0.25 : 1; o.material.depthWrite = m !== 'xray'; }
       }));
-      wires.forEach(w => { w.visible = mode === 'mesh'; });
-      b.mech.forEach(n => { n.material.flatShading = mode === 'mesh'; n.material.needsUpdate = true; });
+      wires.forEach(w => {
+        w.visible = m === 'mesh' || holo;
+        w.material.color.setHex(holo ? 0xf5b942 : 0x0b1020); w.material.opacity = holo ? 0.18 : 0.35;
+      });
+      b.mech.forEach(n => { if (n.material.isMeshStandardMaterial) { n.material.flatShading = m === 'mesh'; n.material.needsUpdate = true; } });
+      scene.background = holo ? HOLO_BG : BG;
+      floor.visible = !holo; grid.visible = holo;
+      ov.style.display = holo ? '' : 'none';
+      if (selected) select(selected, true);
     }
-    setMode('xray');
+    setMode(opt.mode || 'xray');
 
-    let selected = null;
-    function select(id) {
+    function select(id, quiet) {
       selected = id;
-      b.pickables.forEach(o => o.material.emissive.setHex(o.userData.part === id ? 0x1d4ed8 : 0x000000));
-      opt.onPick && opt.onPick(id);
+      b.pickables.forEach(o => {
+        const on = o.userData.part === id;
+        if (o.material.emissive) o.material.emissive.setHex(on ? 0x1d4ed8 : 0x000000);
+        else o.material.color.setHex(on ? 0xfacc15 : 0x38bdf8);
+      });
+      labels.forEach(L => { L.d.style.borderColor = L.id === id ? '#facc15' : '#22d3ee'; });
+      if (!quiet && opt.onPick) opt.onPick(id);
     }
     const ray = new T.Raycaster(), ptr = new T.Vector2();
     let down = null;
@@ -366,12 +469,10 @@
     const clock = new T.Clock();
     (function loop() {
       if (!alive) return;
-      if (anim) {
-        const t = clock.getElapsedTime();
-        k.animate(t);
-      }
+      if (anim) k.animate(clock.getElapsedTime());
       controls.update();
       renderer.render(scene, camera);
+      if (mode === 'holo') placeLabels();
       requestAnimationFrame(loop);
     })();
 

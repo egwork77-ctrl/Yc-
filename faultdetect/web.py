@@ -78,6 +78,7 @@ button.ok{background:var(--green)}button.no{background:var(--amber)}button.ghost
 .fxmap{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:420px;aspect-ratio:5/4}
 .fxmap button{min-height:0;padding:0;border-radius:6px;background:var(--line);color:var(--fg);font-size:13px}
 .fxmap button.sel{background:var(--blue);color:#fff}.seg button{flex:1}.seg button.ghost{opacity:.8}
+#m3d.fs{position:fixed!important;inset:0;height:100vh!important;z-index:50;border-radius:0!important}
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>button{flex:1;min-width:150px}
 .step{font-size:24px;line-height:1.5;padding:24px 4px}
 textarea,input,select{width:100%;font-size:17px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
@@ -113,7 +114,11 @@ async function show3d(m){const el=$('#m3d');if(!el)return;
  try{await loadJS('/static/three.min.js');await loadJS('/static/OrbitControls.js');await loadJS('/static/model3d.js');}
  catch(e){el.innerHTML='<p class="muted">3D 載入失敗</p>';return;}
  const info=$('#pinfo');
- m3d=AOI3D.mount(el,{model:m.model3d,parts:m.parts,onPick:id=>{const p=m.parts.find(x=>x.part_id===id);
+ const urgent=m.tasks.filter(t=>['overdue','alarm'].includes(t.level)).length;
+ m3d=AOI3D.mount(el,{model:m.model3d,parts:m.parts,mode:'holo',
+  panel:{title:m.name+' · '+(m.model||''),health:m.health,rows:[['狀態',(LV[m.level]||'').replace(/^\S+\s/,'')],['緊急待辦',urgent+' 項'],
+   ['機齡',m.info&&m.info.age_years?m.info.age_years+' 年':'—'],['資料時間',(m.as_of||'—').replace('T',' ')]]},
+  gauges:m.predictions.slice().sort((a,b)=>a.health-b.health).map(p=>({name:p.name,value:+(+p.current).toPrecision(4),pct:p.health})),onPick:id=>{const p=m.parts.find(x=>x.part_id===id);
   info.innerHTML=p?`<b>${esc(p.name)}</b> · 健康 ${p.health} · 預計更換 ${dd(p.due_days)} · 庫存 ${p.stock} · ${PS[p.status]}<div class="muted">${esc(p.reasons.join(';')||'目前無異常趨勢')}</div>`
   :`<b>${esc(id)}</b><div class="muted">尚無此零件資料</div>`;}});}
 let liveTimer=null;
@@ -161,7 +166,10 @@ async function report(sid){const d=await api('/api/live/report?session_id='+sid)
  <div class="card">${sugg(d.overall,'💡 原因判斷與改善建議')||'<p class="muted">本場次沒有足夠事件做判斷</p>'}</div>
  <div class="card"><h3>完整記錄</h3><ul>${d.events.slice().reverse().map(e=>`<li>${esc(e.time.slice(11,16))} ${e.source==='log'?'🤖':'👆'} ${esc(e.event==='note'?'📝':(d.counts.find(c=>c.event===e.event)||{name:e.event}).name)} ${esc(e.note)}</li>`).join('')}</ul></div>
  <div class="row noprint"><button onclick="print()">🖨 列印 / 存 PDF</button><button class="ghost" onclick="go('records')">看所有紀錄</button></div>`;}
-function go(v,...a){cur=v;if(m3d){m3d.dispose();m3d=null;}nav(v==='machine'?'overview':v==='report'?'records':['faults','step','end'].includes(v)?'pick':v);window.scrollTo(0,0);
+function fs3d(){const el=$('#m3d');const on=!el.classList.contains('fs');el.classList.toggle('fs',on);
+ let x=$('#fsx');if(on&&!x){x=document.createElement('button');x.id='fsx';x.textContent='✕ 離開全螢幕';x.onclick=fs3d;
+  x.style.cssText='position:fixed;top:12px;right:12px;z-index:60;background:rgba(15,23,42,.8)';document.body.appendChild(x);}else if(!on&&x)x.remove();}
+function go(v,...a){cur=v;const fx=$('#fsx');if(fx)fx.remove();if(m3d){m3d.dispose();m3d=null;}nav(v==='machine'?'overview':v==='report'?'records':['faults','step','end'].includes(v)?'pick':v);window.scrollTo(0,0);
  ({overview,machine,live,report,inspect,pins,parts,pick,faults,step,end,records,upload})[v](...a).catch?.(e=>V.innerHTML=`<div class="card alarm">${esc(e.message)}</div>`);}
 async function load(){S.ov=await api('/api/overview');autoRefresh(S.ov.refresh||60);return S.ov;}
 
@@ -184,11 +192,11 @@ async function machine(id){const ov=S.ov||await load();const m=ov.machines.find(
  ${infoTable(m.info||{})}
  <div class="row" style="margin-top:14px"><button onclick="go('faults','${esc(id)}')">🔧 開始排除故障</button></div></div>
  ${m.model3d?`<div class="card"><h3>🧊 3D 機台</h3><p class="muted">拖曳旋轉、雙指縮放,點選零件查看資料(外型依現場照片估計,內部機構為示意)</p>
- <div id="m3d" style="height:min(60vh,460px);border-radius:12px;overflow:hidden;touch-action:none"></div>
- <div class="row" style="margin-top:10px" id="m3dmode">${[['xray','👁 透視'],['solid','外觀'],['mech','⚙️ 機構'],['mesh','▦ 網格']].map(([k,t])=>
- `<button class="${k==='xray'?'':'ghost'}" data-m="${k}" onclick="m3d.setMode('${k}');document.querySelectorAll('#m3dmode button[data-m]').forEach(b=>b.className=b.dataset.m==='${k}'?'':'ghost')">${t}</button>`).join('')}</div>
+ <div id="m3d" style="height:min(62vh,520px);border-radius:12px;overflow:hidden;touch-action:none"></div>
+ <div class="row" style="margin-top:10px" id="m3dmode">${[['holo','✨ 數位孿生'],['xray','👁 透視'],['solid','外觀'],['mech','⚙️ 機構'],['mesh','▦ 網格']].map(([k,t])=>
+ `<button class="${k==='holo'?'':'ghost'}" data-m="${k}" onclick="m3d.setMode('${k}');document.querySelectorAll('#m3dmode button[data-m]').forEach(b=>b.className=b.dataset.m==='${k}'?'':'ghost')">${t}</button>`).join('')}</div>
  <div class="row" style="margin-top:10px"><button class="ghost" onclick="this.textContent=m3d.toggleAnim()?'⏸ 暫停動作':'▶ 掃描動作'">⏸ 暫停動作</button>
- <button class="ghost" onclick="m3d.reset()">↺ 重設視角</button></div><div id="pinfo" style="margin-top:10px" class="muted">點選零件查看資料</div></div>`:''}
+ <button class="ghost" onclick="m3d.reset()">↺ 重設視角</button><button class="ghost" onclick="fs3d()">⛶ 全螢幕</button></div><div id="pinfo" style="margin-top:10px" class="muted">點選零件查看資料</div></div>`:''}
  <div id="vib"></div>
  <div class="card"><h3>零件健康度</h3><div style="overflow-x:auto"><table><tr>${PH}</tr>${m.parts.map(p=>partRow(p)).join('')}</table></div></div>
  <div class="card"><h3>保養待辦</h3><ul>${m.tasks.map(t=>`<li>${LV[t.level]} [${esc(t.type)}] ${esc(t.item)} → ${esc(t.action)}(${dd(t.due_days)})</li>`).join('')||'<li>無</li>'}</ul>
