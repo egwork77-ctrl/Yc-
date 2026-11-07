@@ -68,9 +68,10 @@ def snapshot(data_dir):
 SHIM = r"""<script>
 /* 展示版:用內嵌的資料快照回應 API,寫入動作不會儲存 */
 (function(){const DATA=__DATA__;const _f=window.fetch;
-window.fetch=async(url,opt)=>{const u=new URL(url,location.href);
- if(!u.pathname.startsWith('/api/'))return _f(url,opt);
- const q=[...u.searchParams.entries()].map(([k,v])=>k+'='+v).join('&');const key=u.pathname+(q?'?'+q:'');
+window.fetch=async(url,opt)=>{const s=String(url),i=s.indexOf('?'),path=i<0?s:s.slice(0,i);
+ if(!path.startsWith('/api/'))return _f(url,opt);
+ const q=[...new URLSearchParams(i<0?'':s.slice(i+1)).entries()].map(([k,v])=>k+'='+v).join('&');const key=path+(q?'?'+q:'');
+ const u={pathname:path};
  const json=(o,s)=>new Response(JSON.stringify(o),{status:s||200,headers:{'Content-Type':'application/json'}});
  if((opt&&opt.method||'GET').toUpperCase()!=='GET')return json({error:'展示版不會儲存資料。要登錄、存檔,請在筆電執行完整版(雙擊 start_windows.bat)。'},400);
  if(key in DATA)return json(DATA[key]);if(u.pathname in DATA)return json(DATA[u.pathname]);
